@@ -1,0 +1,139 @@
+Folder PATH listing for volume New Volume
+Volume serial number is 000000E3 AC58:DD4F
+D:.
+|   build_exe.bat
+|   ClinicApp.spec
+|   clinic_data.db
+|   database.py
+|   database0050.py
+|   database0051.py
+|   debug_next_day_batch.py
+|   dentora_logo_full.png
+|   dentora_logo_icon.png
+|   header_mock2.png
+|   login_prefs.json
+|   main.py
+|   make_icon.py
+|   png-clipart-whatsapp-application-software-message-icon-whatsapp-logo-whats-app-logo-logo-grass-thumbnail.png
+|   project-tree.txt
+|   README.md
+|   requirements.txt
+|   reset_next_day_flag.py
+|   theme.py
+|   theme0.py
+|   whatsapp_auto_archive_debug.log
+|   whatsapp_sender.py
+|   
++---assets
+|   |   07e9f558-1af2-4878-9b45-ad5bfc149e51.jfif
+|   |   app_icon.ico
+|   |   clinic_logo.jpg
+|   |   dentora_icon.ico
+|   |   dentora_icon.png
+|   |   dentora_logo_full.png
+|   |   whatsapp_icon.png
+|   |   
+|   +---icons
+|   |       d47d5ba0-80e8-4bf5-81ae-32781d258311.jfif
+|   |       db1b213d-7e70-4a33-9348-1572d04292e0.jfif
+|   |       wallet0.png
+|   |       
+|   +---patient_files
+|   |   +---1
+|   |   |       1786465271969_2026-07-26 at 01.04.27.jpeg
+|   |   |       1786465282344_282241837_3232201060388830_6851460686479355433_n.jpg
+|   |   |       1786465290234_Capture.JPG
+|   |   |       
+|   |   \---3
+|   +---profile_photos
+|   |       patient_2.jpeg
+|   |       
+|   +---reports
+|   |       statement_1_2026-08-13_2026-08-17.pdf
+|   |       statement_1_2026-08-13_2026-08-20.pdf
+|   |       statement_1_2026-08-15_2026-08-20.pdf
+|   |       statement_1_2026-08-17_2026-08-20.pdf
+|   |       statement_1_2026-08-21_2026-08-21.pdf
+|   |       statement_2_2026-07-09_2026-07-11.pdf
+|   |       statement_2_2026-08-17_2026-08-17.pdf
+|   |       statement_3_2026-07-09_2026-07-09.pdf
+|   |       
+|   +---staff_files
+|   |       national_id_54603.JPG
+|   |       photo_54588.png
+|   |       
+|   \---[Originals]
+|           accounts.jfif
+|           
++---pages
+|   |   appointments_page.py
+|   |   appointments_page0051.py
+|   |   appointments_prefs.json
+|   |   clinic_accounts_page.py
+|   |   date_auto_entry.py
+|   |   draggable_field.py
+|   |   expense_icons.py
+|   |   hijri_offset.json
+|   |   icons.py
+|   |   labs_page.py
+|   |   materials_page.py
+|   |   mini_calendar.py
+|   |   mini_calendar_prefs.json
+|   |   notebook_tabs.py
+|   |   patients_page.py
+|   |   patients_page0051.py
+|   |   patient_files_widget.py
+|   |   pdf_report.py
+|   |   prices_page.py
+|   |   rtl_entry.py
+|   |   settings_page.py
+|   |   staff_page.py
+|   |   teething_timeline.py
+|   |   time_auto_entry.py
+|   |   tooth_chart_widget.py
+|   |   tooth_chart_widget0006.py
+|   |   tooth_chart_widget0051.py
+|   |   tooth_symbols.py
+|   |   treatment_records_table.py
+|   |   treatment_variants_dialog.py
+|   |   visits_table.py
+|   |   visits_table0003.py
+|   |   visits_table0004.py
+|   |   visits_table0006.py
+|   |   whatsapp_page.py
+|   |   whatsapp_page0044.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           appointments_page.cpython-314.pyc
+|           clinic_accounts_page.cpython-314.pyc
+|           date_auto_entry.cpython-314.pyc
+|           draggable_field.cpython-314.pyc
+|           expense_icons.cpython-314.pyc
+|           icons.cpython-314.pyc
+|           labs_page.cpython-314.pyc
+|           materials_page.cpython-314.pyc
+|           mini_calendar.cpython-314.pyc
+|           notebook_tabs.cpython-314.pyc
+|           patients_page.cpython-314.pyc
+|           patient_files_widget.cpython-314.pyc
+|           pdf_report.cpython-314.pyc
+|           prices_page.cpython-314.pyc
+|           rtl_entry.cpython-314.pyc
+|           settings_page.cpython-314.pyc
+|           staff_page.cpython-314.pyc
+|           teething_timeline.cpython-314.pyc
+|           time_auto_entry.cpython-314.pyc
+|           tooth_chart_widget.cpython-314.pyc
+|           tooth_symbols.cpython-314.pyc
+|           treatment_records_table.cpython-314.pyc
+|           treatment_variants_dialog.cpython-314.pyc
+|           visits_table.cpython-314.pyc
+|           whatsapp_page.cpython-314.pyc
+|           __init__.cpython-314.pyc
+|           
+\---__pycache__
+        database.cpython-314.pyc
+        theme.cpython-314.pyc
+        whatsapp_sender.cpython-314.pyc
+        

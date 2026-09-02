@@ -1,0 +1,6 @@
+customtkinter>=5.2.2
+Pillow>=10.4.0
+pyinstaller>=6.0.0
+fpdf2>=2.7.9
+arabic-reshaper>=3.0.0
+python-bidi>=0.4.2
