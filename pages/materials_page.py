@@ -6,9 +6,9 @@
 تصنيفات المصروفات معروضة كتبويبات أيقونية صغيرة (زي صف أيقونات
 بيانات/حسابات/أسنان في صفحة المرضى) بدل المنسدلة القديمة - كل تبويب
 بيفلتر المصروفات المعروضة على تصنيفه بس، وصف التبويبات نفسه متسنتر في
-نص الصفحة. زرار "إضافة مصروف" اتشال من هنا لأن كل تبويب هيتعدّل جوّاه
-بشكل مستقل بعدين. عمود الموردين المشترك اتشال كمان لأن الموردين هينضافوا
-جوه كل قايمة/تبويب على حدة بدل ما يكونوا قايمة عامة واحدة لكل التصنيفات.
+نص الصفحة. زرار "إضافة مصروف" موجود في هيدر الصفحة ويفتح ديالوج لإضافة
+مصروف جديد في أي تصنيف. عمود الموردين المشترك متشال للوقت الحالي لأن
+الموردين هيتم التعامل معهم جوه كل تبويب بشكل مستقل بعدين.
 """
 
 import customtkinter as ctk
@@ -29,6 +29,10 @@ class MaterialsPage(ctk.CTkFrame):
     def _build(self):
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.pack(fill="x", pady=(0, 10))
+
+        theme.make_shadowed_button(header, "＋ إضافة مصروف", command=self._open_add_expense_dialog,
+                                   width=140, height=36, font=theme.FONT_SUBTITLE).pack(side="left")
+
         ctk.CTkLabel(header, text="المصروفات", font=theme.FONT_TITLE,
                      text_color=theme.TEXT_DARK).pack(side="right")
 

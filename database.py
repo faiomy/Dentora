@@ -59,11 +59,42 @@ def verify_password(password: str, stored_hash: str) -> bool:
 # مثال لو هتحط الملف على مجلد مشترك: r"\\SERVER-PC\ClinicShare\clinic_data.db"
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "clinic_data.db")
 
+# قائمة الأعمدة المسموح استخدامها في update_patient - لمنع SQL injection
+PATIENT_UPDATABLE_FIELDS = {
+    "full_name", "phone", "birth_date", "gender", "address", "medical_notes",
+    "allergies", "occupation", "family_id", "nationality", "discount_percent",
+    "profile_photo_path",
+}
+
+# قائمة الأعمدة المسموح استخدامها في update_user
+USER_UPDATABLE_FIELDS = {
+    "username", "password", "full_name", "role", "active", "phone", "specialty",
+    "work_days", "birth_date", "address", "photo_path", "national_id",
+    "national_id_photo_path", "salary", "income_percent", "start_date",
+    "annual_raise_percent",
+}
+
+# قائمة الأعمدة المسموح استخدامها في update_support_staff
+STAFF_UPDATABLE_FIELDS = {
+    "staff_type", "full_name", "phone", "notes", "active", "birth_date",
+    "address", "national_id", "photo_path", "national_id_photo_path",
+    "salary", "income_percent", "start_date", "annual_raise_percent",
+    "work_days",
+}
+
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # وضع WAL يحسّن التوافق مع القراءة/الكتابة المتزامنة (مفيد جدًا عند فتح
+    # نفس ملف القاعدة من أكتر من جهاز/عملية) - إعداد multi_reader مطلوب على
+    # شبكة مشاركة الملفات عشان القراءة المتزامنة من أكتر من عملية تنجح
+    try:
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA synchronous = NORMAL")
+    except Exception:
+        pass
     return conn
 
 
@@ -114,35 +145,12 @@ def init_db():
         "clinic_address": "TEXT",
         "tax_card_number": "TEXT",
         # ---- إعدادات الأرشفة التلقائية لرسائل واتساب (تذكير قبل الموعد
-        # بساعة + شكر بعد انتهاء الموعد الفعلي بساعتين) ----
-        # كل نوع رسالة تلقائية بقى ليه تشيك بوكس مستقل تمامًا عن التاني -
-        # مفيش مفتاح رئيسي واحد بيتحكم في الكل، كل واحد فيهم شغال لوحده
-        "whatsapp_hour_reminder_enabled": "INTEGER NOT NULL DEFAULT 1",
-        "whatsapp_next_day_batch_enabled": "INTEGER NOT NULL DEFAULT 1",
-        # عمود قديم كان بيتحكم في الاتنين مع بعض - سايبينه موجود لأي كود
-        # قديم لسه بيقرأه، لكن مبقاش بيُستخدم في القرار الفعلي للإرسال
-        "whatsapp_auto_archive_enabled": "INTEGER NOT NULL DEFAULT 1",
-        "whatsapp_auto_reminder_template_id": "INTEGER",
-        "whatsapp_auto_thankyou_template_id": "INTEGER",
-        "whatsapp_auto_booking_template_id": "INTEGER",
-        "whatsapp_auto_confirm_send": "INTEGER NOT NULL DEFAULT 0",
-        "whatsapp_auto_wait_seconds": "INTEGER NOT NULL DEFAULT 15",
-        "whatsapp_auto_use_desktop_app": "INTEGER NOT NULL DEFAULT 1",
-        # تفعيل رسالة الشكر التلقائية فور تسجيل دفعة مالية - مفعّلة افتراضيًا
-        # (مستقلة عن باقي الأرشفة، لأنها بتتحكم في نوع رسالة معيّن بس)
-        "whatsapp_payment_thankyou_enabled": "INTEGER NOT NULL DEFAULT 1",
-        # موعد بث تذكير مواعيد الغد اليومي - افتراضيًا 3:00 الظهر، وقابل للتعديل من صفحة واتساب
-        "whatsapp_next_day_batch_hour": "INTEGER NOT NULL DEFAULT 15",
-        "whatsapp_next_day_batch_minute": "INTEGER NOT NULL DEFAULT 0",
-        # ---- خاصية "تذكرني" في شاشة تسجيل الدخول ----
+# ---- خاصية "تذكرني" في شاشة تسجيل الدخول ----
         "remember_login": "INTEGER NOT NULL DEFAULT 0",
         "remembered_username": "TEXT",
         "remembered_password": "TEXT",
         # ---- إظهار/إخفاء المسمى النصي تحت أيقونات الشريط العلوي ----
         "show_ribbon_labels": "INTEGER NOT NULL DEFAULT 1",
-        # ---- تفعيل رسالة تأكيد فورية للمريض بمجرد حجز الموعد (مش هي نفسها
-        # تذكير الساعة قبل الموعد - دي بتتبعت لحظة الحجز على طول) ----
-        "whatsapp_booking_confirmation_enabled": "INTEGER NOT NULL DEFAULT 1",
         # ---- الثيم الجاهز المختار (لوحة ألوان كاملة) - راجع THEME_PRESETS في theme.py ----
         "theme_id": "TEXT NOT NULL DEFAULT 'ocean_blue'",
         # ---- شكل تصميم أزرار الشريط العلوي الرئيسي: classic / glass / luxury ----
@@ -151,15 +159,10 @@ def init_db():
         # مستقل عن nav_button_style اللي بيتحكم بس في شكل خلفية الزرار):
         # outline / filled / bold ----
         "icon_pattern": "TEXT NOT NULL DEFAULT 'outline'",
-        # ---- علامة تشغّل مرة واحدة بس: تصفير كامل لحسابات كل المرضى
-        # (transactions + treatment_records) بعد إعادة هيكلة نظام الحسابات
-        # القديم، عشان نبتدي تسجيل نضيف بالنظام الجديد من غير أي بيانات
-        # قديمة ملخبطة. راجع "تصفير الحسابات (مرة واحدة)" تحت ----
+        # ---- أعمدة قديمة استخدمت سابقًا لتنفيذ تصفير بيانات مالية لمرة
+        # واحدة أثناء التطوير (لم تعد تُستخدم وتم إزالة كود التصفير الخطر
+        # من init_db). تبقى الأعمدة محفوظة للتوافق مع قواعد بيانات قديمة ----
         "financial_reset_v2_done": "INTEGER NOT NULL DEFAULT 0",
-        # ---- علامة تشغّل مرة واحدة بس: مسح كل المصروفات والموردين
-        # المسجلين قبل إعادة تصميم صفحة المصروفات (تبويبات أيقونية لكل
-        # تصنيف بدل المنسدلة القديمة)، عشان تبدأ الصفحة الجديدة ببيانات
-        # نضيفة من غير أي بيانات تجريبية/قديمة ----
         "expenses_reset_v1_done": "INTEGER NOT NULL DEFAULT 0",
     }
     cur.execute("PRAGMA table_info(clinic_settings)")
@@ -263,7 +266,6 @@ def init_db():
         "manage_expenses": {"manager": 1, "doctor": 0, "secretary": 1},
         "view_clinic_accounts": {"manager": 1, "doctor": 0, "secretary": 0},
         "manage_staff": {"manager": 1, "doctor": 0, "secretary": 0},
-        "manage_whatsapp": {"manager": 1, "doctor": 0, "secretary": 1},
         "manage_labs": {"manager": 1, "doctor": 1, "secretary": 1},
     }
     for perm_key, role_defaults in new_permission_defaults.items():
@@ -580,27 +582,6 @@ def init_db():
     if "discount_amount" not in tx_cols:
         cur.execute("ALTER TABLE transactions ADD COLUMN discount_amount REAL NOT NULL DEFAULT 0")
 
-    # تصفير الحسابات (مرة واحدة بس): بعد إعادة هيكلة نظام الحسابات بالكامل
-    # (توحيد جدول "سجل المعالجات" مع transactions)، اكتشفنا إن بيانات
-    # كتير قديمة كانت اتسجّلت بالنظام القديم (قبل الربط) طلعت متضاربة بين
-    # الجدول والملخص عند أي محاولة "ترقيع"/مطابقة تلقائية. القرار اتاخد
-    # إننا بدل ما نفضل نلحق ونصلّح بيانات قديمة ملخبطة، نصفّر حسابات كل
-    # المرضى المسجلين تمامًا (transactions + الحقول المالية في
-    # treatment_records) مرة واحدة بس، ونبتدي تسجيل نضيف بالنظام الجديد
-    # من غير أي أثر لأي خطأ قديم. البيانات الطبية التانية (بيانات
-    # المريض، شارت الأسنان نفسه كتشخيص، المواعيد...) مش بتتأثر خالص -
-    # التصفير هنا للحسابات المالية بس. العلامة financial_reset_v2_done
-    # بتضمن إن ده بيحصل مرة واحدة بالظبط ومش هيتكرر تاني في أي تشغيل جاي
-    cur.execute("SELECT financial_reset_v2_done FROM clinic_settings WHERE id = 1")
-    reset_row = cur.fetchone()
-    if reset_row and not reset_row["financial_reset_v2_done"]:
-        cur.execute("DELETE FROM transactions")
-        cur.execute("""
-            UPDATE treatment_records
-            SET discount_amount = 0, discount_percent = 0, paid_amount = 0
-        """)
-        cur.execute("UPDATE clinic_settings SET financial_reset_v2_done = 1 WHERE id = 1")
-
     # زيارات المتابعة (ملاحظات كل زيارة)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS visits (
@@ -759,18 +740,6 @@ def init_db():
         )
     """)
 
-    # مسح كل المصروفات والموردين المسجلين (مرة واحدة بس): بعد إعادة تصميم
-    # صفحة المصروفات لتبويبات أيقونية لكل تصنيف بدل المنسدلة القديمة، تقرر
-    # مسح كل البيانات القديمة المسجلة (تجريبية) عشان الصفحة الجديدة تبدأ
-    # فاضية تمامًا. العلامة expenses_reset_v1_done بتضمن إن ده بيحصل مرة
-    # واحدة بالظبط ومش هيتكرر تاني في أي تشغيل جاي
-    cur.execute("SELECT expenses_reset_v1_done FROM clinic_settings WHERE id = 1")
-    expenses_reset_row = cur.fetchone()
-    if expenses_reset_row and not expenses_reset_row["expenses_reset_v1_done"]:
-        cur.execute("DELETE FROM expenses")
-        cur.execute("DELETE FROM suppliers")
-        cur.execute("UPDATE clinic_settings SET expenses_reset_v1_done = 1 WHERE id = 1")
-
     # أيام إجازة محددة بعينها (غير الإجازة الأسبوعية الثابتة)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS holidays (
@@ -871,6 +840,11 @@ def init_db():
               AND requires_lab = 0""",
         LAB_DEFAULT_TREATMENT_KEYS)
 
+    # تنظيف أي كلمة مرور نصية محفوظة في حقل التذكير (ترقية أمان) -
+    # تذكير المستخدم لا يحتاج كلمة مرور، فقط اسم المستخدم المختار
+    cur.execute("UPDATE clinic_settings SET remembered_password = NULL "
+                "WHERE remembered_password IS NOT NULL")
+
     conn.commit()
     conn.close()
 
@@ -949,15 +923,15 @@ def set_require_password(value):
     conn.close()
 
 
-def set_remembered_login(username, remember, password=None):
-    """بتحفظ اسم المستخدم وكلمة المرور (لو remember=True) عشان يترشّح
-    المستخدم تلقائيًا وتتملى كلمة المرور تلقائيًا في حقلها في المرة الجاية.
-    لو remember=False بتلغي التذكير وتمسح البيانات المحفوظة كلها"""
+def set_remembered_login(username, remember):
+    """بتحفظ اسم المستخدم المختار فقط (لو remember=True) عشان يترشّح تلقائيًا
+    في المرة الجاية. لا يتم حفظ كلمة المرور أبدًا (من الأمان). لو remember=False
+    بتلغي التذكير وتمسح البيانات المحفوظة."""
     conn = get_connection()
     conn.execute(
-        "UPDATE clinic_settings SET remember_login = ?, remembered_username = ?, remembered_password = ? "
+        "UPDATE clinic_settings SET remember_login = ?, remembered_username = ?, remembered_password = NULL "
         "WHERE id = 1",
-        (1 if remember else 0, username if remember else None, password if remember else None)
+        (1 if remember else 0, username if remember else None)
     )
     conn.commit()
     conn.close()
@@ -965,9 +939,26 @@ def set_remembered_login(username, remember, password=None):
 
 def set_setting_value(column_name, value):
     """تحديث عمود واحد بس في جدول الإعدادات - دالة عامة تُستخدم لأي إعداد
-    بسيط (رقم/نص) مالوش دالة مخصصة له. ملحوظة: column_name لازم يكون اسم
-    عمود حقيقي موجود بالفعل في الجدول (بيُستخدم من كود داخلي بس، مش من
-    مدخلات المستخدم مباشرة) عشان مفيش تحقق إضافي هنا"""
+    بسيط (رقم/نص) مالوش دالة مخصصة له. column_name بيتم التحقق منه ضد
+    قائمة أعمدة معروفة لمنع SQL injection"""
+    _KNOWN_SETTINGS_COLUMNS = {
+        "clinic_name", "logo_path", "primary_color", "secondary_color",
+        "system_font_family", "content_font_family", "system_font_size", "content_font_size",
+        "language", "active_price_list_id", "require_password", "mini_calendar_width",
+        "weekly_holidays", "schedule_start_hour", "schedule_end_hour",
+        "clinic_address", "tax_card_number", "whatsapp_hour_reminder_enabled",
+        "whatsapp_next_day_batch_enabled", "whatsapp_auto_archive_enabled",
+        "whatsapp_auto_reminder_template_id", "whatsapp_auto_thankyou_template_id",
+        "whatsapp_auto_booking_template_id", "whatsapp_auto_confirm_send",
+        "whatsapp_auto_wait_seconds", "whatsapp_auto_use_desktop_app",
+        "whatsapp_payment_thankyou_enabled", "whatsapp_next_day_batch_hour",
+        "whatsapp_next_day_batch_minute", "remember_login", "remembered_username",
+        "remembered_password", "show_ribbon_labels", "whatsapp_booking_confirmation_enabled",
+        "theme_id", "nav_button_style", "icon_pattern",
+        "financial_reset_v2_done", "expenses_reset_v1_done",
+    }
+    if column_name not in _KNOWN_SETTINGS_COLUMNS:
+        raise ValueError(f"set_setting_value: غير مسموح بتعديل العمود '{column_name}'")
     conn = get_connection()
     conn.execute(f"UPDATE clinic_settings SET {column_name} = ? WHERE id = 1", (value,))
     conn.commit()
@@ -1164,6 +1155,7 @@ def add_patient(full_name, phone="", birth_date="", gender="", address="", medic
 
 
 def update_patient(patient_id, **fields):
+    fields = {k: v for k, v in fields.items() if k in PATIENT_UPDATABLE_FIELDS}
     if not fields:
         return
     conn = get_connection()
@@ -1193,33 +1185,25 @@ def delete_patient(patient_id):
 
 def get_all_patients(search=""):
     conn = get_connection()
-    rows = conn.execute("SELECT * FROM patients ORDER BY full_name").fetchall()
-    conn.close()
-    patients = [dict(r) for r in rows]
-
     search = (search or "").strip()
     if not search:
-        return patients
+        rows = conn.execute("SELECT * FROM patients ORDER BY full_name").fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
 
     search_lower = search.lower()
-    results = []
-    for p in patients:
-        haystack_parts = [
-            p.get("full_name") or "",
-            p.get("phone") or "",
-            p.get("occupation") or "",
-            p.get("address") or "",
-            p.get("nationality") or "",
-            str(p.get("id") or ""),
-            f"{p.get('id', 0):06d}",
-        ]
-        age = calculate_age(p.get("birth_date"))
-        if age is not None:
-            haystack_parts.append(str(age))
-        haystack = " ".join(haystack_parts).lower()
-        if search_lower in haystack:
-            results.append(p)
-    return results
+    like = f"%{search_lower}%"
+    rows = conn.execute(
+        """
+        SELECT * FROM patients
+        WHERE LOWER(full_name) LIKE ? OR LOWER(phone) LIKE ? OR LOWER(occupation) LIKE ?
+           OR LOWER(address) LIKE ? OR LOWER(nationality) LIKE ? OR LOWER(CAST(id AS TEXT)) LIKE ?
+        ORDER BY full_name
+        """,
+        (like, like, like, like, like, like)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 def get_family_members(family_id, exclude_patient_id=None):
@@ -2521,6 +2505,7 @@ def add_user(username, password, full_name, role, phone="", specialty="", work_d
 
 
 def update_user(user_id, **fields):
+    fields = {k: v for k, v in fields.items() if k in USER_UPDATABLE_FIELDS}
     if not fields:
         return
     if "password" in fields:
@@ -2822,6 +2807,7 @@ def add_support_staff(staff_type, full_name, phone="", notes="", specialty="", w
 
 
 def update_support_staff(staff_id, **fields):
+    fields = {k: v for k, v in fields.items() if k in STAFF_UPDATABLE_FIELDS}
     if not fields:
         return
     conn = get_connection()

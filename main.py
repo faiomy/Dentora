@@ -21,7 +21,6 @@ from pages.prices_page import PricesPage
 from pages.materials_page import MaterialsPage
 from pages.clinic_accounts_page import ClinicAccountsPage
 from pages.staff_page import StaffPage
-from pages.whatsapp_page import WhatsAppPage
 from pages.labs_page import LabsPage
 
 # بنعطّل الـ DPI awareness التلقائي بتاع customtkinter (ده اللي بيسبب مشكلة إن
@@ -361,11 +360,9 @@ class LoginScreen(ctk.CTkToplevel):
 
         self.require_password = bool(settings.get("require_password", 1))
 
-        # لو خاصية "تذكرني" مفعّلة ومتسجل اسم مستخدم سابق، بنرشّحه تلقائي في القايمة
+        # لو خاصية "تذكرني" مفعّلة ومتسجل اسم مستخدم سابق، بنرشّه تلقائي في القايمة
         remembered_username = settings.get("remembered_username")
-        remembered_password = settings.get("remembered_password")
         self._remembered_username = remembered_username
-        self._remembered_password = remembered_password
         default_name = names[0]
         if remembered_username:
             for display_name, u in self.user_map.items():
@@ -409,17 +406,12 @@ class LoginScreen(ctk.CTkToplevel):
                 hover_color=theme.darken_color(theme.INPUT_SUNKEN_BG, 0.9),
                 command=self._toggle_password_visibility)
             self.toggle_eye_btn.pack(side="left", padx=(6, 0))
-
-            # لو "تذكرني" كانت مفعّلة آخر مرة والمستخدم المختار حاليًا هو نفسه
-            # المتذكَّر، بنملأ كلمة المرور تلقائيًا (تفضل قابلة للتعديل عاديةً)
-            self._autofill_password_if_remembered()
         else:
             ctk.CTkLabel(card, text="تسجيل الدخول بدون كلمة مرور مفعّل حاليًا",
                          font=theme.FONT_SMALL, text_color=theme.TEXT_MUTED).pack(pady=(8, 6))
 
-        # صندوق "تذكرني" - لو متفعّل، هيترشّح نفس المستخدم تلقائيًا وتتملى كلمة
-        # المرور تلقائيًا في المرة الجاية. مظهره علامة صح بس من غير خلفية
-        # ملوّنة، وخط عادي مش Bold
+        # صندوق "تذكرني" - لو متفعّل، هيترشّح نفس المستخدم تلقائيًا في المرة
+        # الجاية (من غير حفظ كلمة المرور لأسباب أمنية)
         self.remember_checkbox = ctk.CTkCheckBox(
             card, text="تذكرني", variable=self.remember_var,
             font=(theme.FONT_FAMILY, theme.CONTENT_FONT_SIZE), text_color=theme.TEXT_DARK,
@@ -466,30 +458,12 @@ class LoginScreen(ctk.CTkToplevel):
             for delay_ms in (80, 200, 400, 700):
                 self.after(delay_ms, self._focus_password_field)
 
-    def _autofill_password_if_remembered(self):
-        """بتملأ حقل كلمة المرور تلقائيًا لو المستخدم المختار حاليًا هو نفسه
-        المتذكَّر من آخر تسجيل دخول ناجح وخانة "تذكرني" كانت مفعّلة وقتها"""
-        if self.password_entry is None:
-            return
-        selected = self.user_map.get(self.user_var.get())
-        if (selected is not None and self._remembered_username
-                and selected["username"] == self._remembered_username
-                and self._remembered_password):
-            self.password_entry.delete(0, "end")
-            self.password_entry.insert(0, self._remembered_password)
-
     def _on_user_selection_changed(self):
-        """لو المستخدم غيّر الاختيار من القايمة، بنملأ كلمة المرور تلقائيًا لو
-        ده نفس المستخدم المتذكَّر، أو نفضّي الحقل لو ده مستخدم مختلف"""
+        """لو المستخدم غيّر الاختيار من القايمة، بنفضّي حقل كلمة المرور عشان
+        المستخدم الجديد يكتب كلمة مروره هو"""
         if self.password_entry is None:
             return
-        selected = self.user_map.get(self.user_var.get())
-        if (selected is not None and self._remembered_username
-                and selected["username"] == self._remembered_username
-                and self._remembered_password):
-            self._autofill_password_if_remembered()
-        else:
-            self.password_entry.delete(0, "end")
+        self.password_entry.delete(0, "end")
 
     def _focus_password_field(self):
         try:
@@ -520,10 +494,9 @@ class LoginScreen(ctk.CTkToplevel):
         password = self.password_entry.get() if self.password_entry is not None else ""
         user = db.authenticate_user(selected["username"], password)
         if user:
-            # لو "تذكرني" مفعّلة، بنحفظ اسم المستخدم وكلمة المرور نفسها عشان
-            # تتملى تلقائيًا في حقلها المرة الجاية. لو مش مفعّلة، بنمسح أي بيانات
-            # محفوظة قبل كده
-            db.set_remembered_login(user["username"], self.remember_var.get(), password)
+            # لو "تذكرني" مفعّلة، بنحفظ اسم المستخدم المختار بس (من غير كلمة المرور)
+            # عشان يترشّح تلقائيًا في المرة الجاية. لو مش مفعّلة، بنمسح الترشيح
+            db.set_remembered_login(user["username"], self.remember_var.get())
             self.destroy()
             self.on_success(user)
         else:
@@ -539,7 +512,6 @@ class ClinicApp(ctk.CTk):
         ("materials", "toolbox", "المصروفات", "manage_expenses"),
         ("accounts", "wallet", "الحسابات", "view_clinic_accounts"),
         ("labs", "factory", "المعامل", "manage_labs"),
-        ("whatsapp", "chat", "واتساب", "manage_whatsapp"),
         ("settings", "gear", "الإعدادات", "always"),
     ]
 
@@ -612,187 +584,8 @@ class ClinicApp(ctk.CTk):
         self._build_top_nav()
         self._build_content_area()
         self.show_page("appointments")
-        self._start_whatsapp_auto_archive_loop()
-
-    # ---------------- الأرشفة التلقائية لرسائل واتساب ----------------
-    # حلقة خلفية تعمل طالما البرنامج مفتوح (على أي صفحة كانت)، وبتفحص كل دقيقة
-    # (بتوقيت الجهاز الفعلي، مش تقريبي) 3 أنواع من الرسائل التلقائية:
-    # 1) تذكير قبل كل موعد بساعة واحدة بالظبط
-    # 2) بث جماعي يومي الساعة 3 الظهر بالظبط لكل مواعيد الغد
-    # 3) رسالة شكر فورية فور تسجيل أي دفعة مالية في حساب أي مريض (تشيك بوكس مستقل، مفعّل افتراضيًا)
-    # كل ده من غير أي تدخل بشري، طالما "تفعيل الأرشفة التلقائية" شغّالة من صفحة واتساب
-
-    WHATSAPP_AUTO_ARCHIVE_CHECK_MS = 60_000  # فحص كل دقيقة
-
-    def _start_whatsapp_auto_archive_loop(self):
-        self._whatsapp_auto_archive_tick()
-
-    def _log_debug(self, message):
-        """تسجيل سطر تشخيصي في ملف منفصل عن ملف الأخطاء - بيوضّح إيه اللي
-        الحلقة الخلفية قرّرته فعليًا (لقت مواعيد ولا لأ، اتخطت حد ليه، إلخ)
-        من غير ما يحصل بالضرورة أي خطأ. مفيدة جدًا للتشخيص عن بُعد"""
-        try:
-            from datetime import datetime as _dt
-            log_path = os.path.join(APP_ROOT, "whatsapp_auto_archive_debug.log")
-            with open(log_path, "a", encoding="utf-8") as f:
-                f.write(f"[{_dt.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
-        except Exception:
-            pass
-
-    def _whatsapp_auto_archive_tick(self):
-        try:
-            self._run_whatsapp_auto_archive()
-        except Exception:
-            # أي خطأ غير متوقع (مثلًا قاعدة بيانات مقفولة مؤقتًا) لا يجب أن
-            # يوقف الحلقة نهائيًا - بنكمل تاني في الفحص القادم، لكن بنسجّل
-            # الخطأ في ملف عشان نقدر نشخّص المشكلة بدل ما تختفي بصمت
-            try:
-                import traceback
-                from datetime import datetime as _dt
-                log_path = os.path.join(APP_ROOT, "whatsapp_auto_archive_error.log")
-                with open(log_path, "a", encoding="utf-8") as f:
-                    f.write("\n" + "=" * 60 + "\n")
-                    f.write(_dt.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
-                    traceback.print_exc(file=f)
-            except Exception:
-                pass
-        self.after(self.WHATSAPP_AUTO_ARCHIVE_CHECK_MS, self._whatsapp_auto_archive_tick)
-
-    def _run_whatsapp_auto_archive(self):
-        settings = db.get_settings()
-
-        hour_reminder_enabled = bool(settings.get("whatsapp_hour_reminder_enabled", 1))
-        next_day_batch_enabled = bool(settings.get("whatsapp_next_day_batch_enabled", 1))
-        payment_thankyou_enabled = bool(settings.get("whatsapp_payment_thankyou_enabled", 1))
-        self._log_debug(
-            f"tick: hour_reminder={hour_reminder_enabled}, next_day_batch={next_day_batch_enabled}, "
-            f"payment_thankyou={payment_thankyou_enabled}")
-        # ملحوظة: رسالة تأكيد الحجز الفورية بتتبعت من appointments_page.py
-        # مباشرة لحظة الحفظ - مش من الحلقة الدورية دي، فمالهاش داعي هنا
-
-        # لو الأربع أنواع الرسايل دي كلها متوقفة، مفيش داعي نكمل خالص
-        if not (hour_reminder_enabled or next_day_batch_enabled or payment_thankyou_enabled):
-            return
-
-        use_desktop = bool(settings.get("whatsapp_auto_use_desktop_app", 1))
-        confirm_send = bool(settings.get("whatsapp_auto_confirm_send"))
-        try:
-            wait_seconds = max(3, int(settings.get("whatsapp_auto_wait_seconds") or 15))
-        except Exception:
-            wait_seconds = 15
-        try:
-            batch_hour = int(settings.get("whatsapp_next_day_batch_hour") or 15)
-            assert 0 <= batch_hour <= 23
-        except Exception:
-            batch_hour = 15
-        try:
-            batch_minute = int(settings.get("whatsapp_next_day_batch_minute") or 0)
-            assert 0 <= batch_minute <= 59
-        except Exception:
-            batch_minute = 0
-        clinic_name = settings["clinic_name"]
-
-        reminder_template = self._get_template_by_id(settings.get("whatsapp_auto_reminder_template_id")) \
-            or self._first_template("appointment_reminder")
-        thankyou_template = self._get_template_by_id(settings.get("whatsapp_auto_thankyou_template_id")) \
-            or self._first_template("thank_you")
-
-        # لما أكتر من رسالة تبقى مستحقة في نفس اللحظة (زي بث تذكير مواعيد
-        # الغد اللي ممكن يشمل عدة مرضى مرة واحدة)، فتح كل روابط واتساب فورًا
-        # ورا بعض بيلخبط تطبيق واتساب لسطح المكتب (بيفتح آخر محادثة بس
-        # وتضيع الرسايل اللي قبلها). فبدل ما نفتحهم كلهم في نفس اللحظة،
-        # بنأجّل كل رسالة عن اللي قبلها بفاصل زمني كافي عشان التطبيق يلحق
-        # يتنقل صح لكل محادثة. بنعلّم الموعد كـ"مُرسَل" فورًا وقت الجدولة
-        # (مش وقت التنفيذ الفعلي) عشان الفحص الدوري اللي بيجي كل دقيقة
-        # مايعيدش جدولة نفس الرسالة تاني وهي لسه في الطابور
-        stagger_seconds = max(wait_seconds + 3, 8) if confirm_send else 6
-        batch_offset = [0]
-
-        def _schedule_send(phone, message, mark_sent_fn):
-            delay_ms = batch_offset[0] * stagger_seconds * 1000
-            batch_offset[0] += 1
-            mark_sent_fn()
-
-            def _do_send():
-                wa_sender.open_whatsapp_chat(phone, message, use_desktop_app=use_desktop)
-                if confirm_send:
-                    wa_sender.press_enter_later(self, wait_seconds * 1000)
-
-            self.after(delay_ms, _do_send)
-
-        if hour_reminder_enabled and reminder_template:
-            for appt in db.get_appointments_due_for_auto_reminder():
-                if not appt.get("whatsapp_number"):
-                    continue
-                message = db.fill_message_template(
-                    reminder_template["template_text"], appt["full_name"], appt["appt_date"],
-                    appt["appt_time"], doctor_name=appt.get("doctor_name") or "", clinic_name=clinic_name)
-                _schedule_send(appt["whatsapp_number"], message,
-                               lambda aid=appt["id"]: db.mark_auto_reminder_1h_sent(aid, True))
-
-        # بث يومي في الساعة/الدقيقة المحددة في الإعدادات (افتراضيًا 3:00 الظهر،
-        # وقابلة للتعديل من صفحة واتساب) لكل مواعيد الغد (بنفس قالب التذكير) -
-        # مستقل تمامًا عن تذكير الساعة الواحدة قبل الموعد، وكل موعد بياخد
-        # علامته الخاصة (next_day_reminder_sent) عشان الرسالة تتبعت مرة واحدة بس
-        if next_day_batch_enabled and reminder_template:
-            due_appts = db.get_appointments_due_for_next_day_batch(
-                batch_hour=batch_hour, batch_minute=batch_minute)
-            self._log_debug(
-                f"next_day_batch: enabled={next_day_batch_enabled}, "
-                f"batch_time={batch_hour:02d}:{batch_minute:02d}, found={len(due_appts)} appt(s)")
-            if not due_appts:
-                tomorrow_str, raw_appts = db.debug_next_day_batch_appointments()
-                self._log_debug(
-                    f"next_day_batch: DEBUG - تاريخ الغد المحسوب = {tomorrow_str}, "
-                    f"إجمالي مواعيد بهذا التاريخ في قاعدة البيانات = {len(raw_appts)}")
-                for a in raw_appts:
-                    self._log_debug(
-                        f"next_day_batch: DEBUG - appt #{a['id']} | {a['full_name']} | "
-                        f"{a['appt_date']} {a['appt_time']} | status={a['status']} | "
-                        f"next_day_reminder_sent={a['next_day_reminder_sent']}")
-            for appt in due_appts:
-                if not appt.get("whatsapp_number"):
-                    self._log_debug(
-                        f"next_day_batch: SKIPPED appt #{appt['id']} ({appt.get('full_name')}) "
-                        f"- لا يوجد رقم واتساب/تليفون مسجَّل لهذا المريض")
-                    continue
-                message = db.fill_message_template(
-                    reminder_template["template_text"], appt["full_name"], appt["appt_date"],
-                    appt["appt_time"], doctor_name=appt.get("doctor_name") or "", clinic_name=clinic_name)
-                self._log_debug(
-                    f"next_day_batch: scheduling send to {appt.get('full_name')} "
-                    f"({appt['whatsapp_number']}) for appt #{appt['id']}")
-                _schedule_send(appt["whatsapp_number"], message,
-                               lambda aid=appt["id"]: db.mark_next_day_reminder_sent(aid, True))
-        elif not next_day_batch_enabled:
-            pass
-        elif not reminder_template:
-            self._log_debug("next_day_batch: SKIPPED بالكامل - مفيش قالب تذكير موعد متظبط")
-
-        # رسالة شكر تلقائية فور تسجيل أي دفعة مالية في حساب أي مريض (من أي
-        # صفحة في البرنامج، لأنها بتتبعت من نفس الدالة المركزية في قاعدة
-        # البيانات مهما كانت الشاشة اللي سجّلت منها الدفعة) - تشيك بوكس مستقل
-        if thankyou_template and payment_thankyou_enabled:
-            for tx in db.get_pending_payment_thank_yous():
-                if not tx.get("whatsapp_number"):
-                    continue
-                message = db.fill_payment_thank_you_template(
-                    thankyou_template["template_text"], tx["full_name"], tx["amount"],
-                    clinic_name=clinic_name)
-                _schedule_send(tx["whatsapp_number"], message,
-                               lambda tid=tx["id"]: db.mark_transaction_thank_you_sent(tid, True))
-
-    def _get_template_by_id(self, template_id):
-        if not template_id:
-            return None
-        for t in db.get_message_templates():
-            if t["id"] == template_id:
-                return t
-        return None
-
-    def _first_template(self, template_type):
-        templates = db.get_message_templates(template_type)
-        return templates[0] if templates else None
+        # WhatsApp auto-archive removed - replaced by n8n integration
+        # (API key stored in environment variable N8N_API_KEY)
 
     def _can_access(self, permission_key):
         if permission_key is None:

@@ -22,3 +22,6 @@
 [2026-08-25 04:48:16] tick: hour_reminder=True, next_day_batch=True, payment_thankyou=True
 [2026-08-25 04:48:16] next_day_batch: enabled=True, batch_time=14:00, found=0 appt(s)
 [2026-08-25 04:48:16] next_day_batch: DEBUG - تاريخ الغد المحسوب = 2026-08-26, إجمالي مواعيد بهذا التاريخ في قاعدة البيانات = 0
+[2026-09-02 14:59:07] tick: hour_reminder=True, next_day_batch=True, payment_thankyou=True
+[2026-09-02 14:59:07] next_day_batch: enabled=True, batch_time=14:00, found=0 appt(s)
+[2026-09-02 14:59:07] next_day_batch: DEBUG - تاريخ الغد المحسوب = 2026-09-03, إجمالي مواعيد بهذا التاريخ في قاعدة البيانات = 0
