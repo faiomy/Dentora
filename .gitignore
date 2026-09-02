@@ -1,0 +1,34 @@
+# Database
+clinic_data.db
+clinic_data.db-wal
+clinic_data.db-shm
+
+# Login credentials
+login_prefs.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Build
+dist/
+build/
+*.spec
+
+# Logs
+*.log
+
+# Environment variables (secrets)
+.env
+
+# Assets with patient/staff data
+assets/patient_files/
+assets/staff_files/
+assets/profile_photos/
+assets/reports/
+
+# App-specific prefs
+pages/appointments_prefs.json
+pages/mini_calendar_prefs.json
+pages/hijri_offset.json

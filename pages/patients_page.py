@@ -23,7 +23,10 @@ from pages.treatment_records_table import (TreatmentRecordsTable, CELL_FONT, CEL
                                             HEADER_FONT, GRID_LINE, _fmt_num)
 from pages.visits_table import PatientVisitsTable
 from pages import pdf_report
-import whatsapp_sender as wa_sender
+try:
+    import whatsapp_sender as wa_sender
+except Exception:
+    wa_sender = None
 
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
 PROFILE_PHOTOS_DIR = os.path.join(ASSETS_DIR, "profile_photos")
@@ -1361,6 +1364,8 @@ class PatientsPage(ctk.CTkFrame):
         """رسالة واتساب سريعة باستلام المبلغ والشكر - بتتفتح المحادثة
         جاهزة فورًا بعد تأكيد الدفعة، وبتحترم نفس إعدادات الإرسال التلقائي
         (تطبيق سطح المكتب / تأكيد تلقائي) المستخدمة في باقي رسائل البرنامج"""
+        if not wa_sender:
+            return
         if amount <= 0:
             return
         try:
@@ -1376,10 +1381,11 @@ class PatientsPage(ctk.CTkFrame):
                 f"شكرًا لثقتكم في {clinic_name}."
             )
             use_desktop = bool(settings.get("whatsapp_auto_use_desktop_app", 1))
-            wa_sender.open_whatsapp_chat(whatsapp_number, message, use_desktop_app=use_desktop)
-            if bool(settings.get("whatsapp_auto_confirm_send")):
-                wait_seconds = max(3, int(settings.get("whatsapp_auto_wait_seconds") or 15))
-                wa_sender.press_enter_later(self, wait_seconds * 1000)
+            if wa_sender:
+                wa_sender.open_whatsapp_chat(whatsapp_number, message, use_desktop_app=use_desktop)
+                if bool(settings.get("whatsapp_auto_confirm_send")):
+                    wait_seconds = max(3, int(settings.get("whatsapp_auto_wait_seconds") or 15))
+                    wa_sender.press_enter_later(self, wait_seconds * 1000)
         except Exception:
             pass
 

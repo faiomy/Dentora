@@ -20,7 +20,10 @@ from datetime import date, datetime, timedelta
 
 import theme
 import database as db
-import whatsapp_sender as wa_sender
+try:
+    import whatsapp_sender as wa_sender
+except Exception:
+    wa_sender = None
 from pages.rtl_entry import RTLEntry
 from pages.mini_calendar import MiniCalendar, LinkedMiniCalendars
 from pages.time_auto_entry import TimeAutoEntry
@@ -1262,32 +1265,8 @@ class AppointmentsPage(ctk.CTkFrame):
         save_btn.pack(side="left", padx=(0, 4), pady=(2, 0))
 
     def _send_booking_confirmation(self, patient, appt_date, appt_time, doctor_name):
-        """بترسل رسالة تأكيد فورية للمريض لحظة تسجيل الموعد - مستقلة تمامًا
-        عن تذكير الساعة قبل الموعد (اللي بيبعت لاحقًا في وقته المحدد بغض
-        النظر عن الرسالة دي). أي خطأ هنا (رقم غير موجود، إعداد متوقف، إلخ)
-        بيتجاهل بهدوء وميوقفش حفظ الموعد نفسه"""
-        try:
-            settings = db.get_settings()
-            if not bool(settings.get("whatsapp_booking_confirmation_enabled", 1)):
-                return
-            templates = db.get_message_templates("booking_confirmation")
-            if not templates:
-                return
-            selected_id = settings.get("whatsapp_auto_booking_template_id")
-            template = next((t for t in templates if t["id"] == selected_id), None) or templates[0]
-            whatsapp_number = db.get_whatsapp_number(patient["id"])
-            if not whatsapp_number:
-                return
-            message = db.fill_message_template(
-                template["template_text"], patient["full_name"], appt_date, appt_time,
-                doctor_name=doctor_name or "", clinic_name=settings.get("clinic_name") or "")
-            use_desktop = bool(settings.get("whatsapp_auto_use_desktop_app", 1))
-            wa_sender.open_whatsapp_chat(whatsapp_number, message, use_desktop_app=use_desktop)
-            if bool(settings.get("whatsapp_auto_confirm_send")):
-                wait_seconds = max(3, int(settings.get("whatsapp_auto_wait_seconds") or 15))
-                wa_sender.press_enter_later(self, wait_seconds * 1000)
-        except Exception:
-            pass
+        """تمت إزالة إرسال رسالة تأكيد واتساب الفورية بعد استبدال النظام بـ n8n."""
+        return
 
     def _on_appt_right_click(self, event, appt):
         # اتعكس الترتيب عن قبل: دلوقتي الضغطة العادية (يمين الماوس... لأ،

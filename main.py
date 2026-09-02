@@ -12,7 +12,7 @@ from PIL import Image, ImageTk, ImageDraw, ImageFilter
 
 import theme
 import database as db
-import whatsapp_sender as wa_sender
+from pages.n8n_page import N8nPage
 from pages import icons
 from pages.patients_page import PatientsPage
 from pages.appointments_page import AppointmentsPage
@@ -512,6 +512,7 @@ class ClinicApp(ctk.CTk):
         ("materials", "toolbox", "المصروفات", "manage_expenses"),
         ("accounts", "wallet", "الحسابات", "view_clinic_accounts"),
         ("labs", "factory", "المعامل", "manage_labs"),
+        ("n8n", "gear", "تكامل n8n", "always"),
         ("settings", "gear", "الإعدادات", "always"),
     ]
 
@@ -1057,12 +1058,12 @@ class ClinicApp(ctk.CTk):
             self.current_page = StaffPage(self.content_area, current_user=self.current_user)
         elif page_key == "materials":
             self.current_page = MaterialsPage(self.content_area)
-        elif page_key == "whatsapp":
-            self.current_page = WhatsAppPage(self.content_area, current_user=self.current_user)
         elif page_key == "accounts":
             self.current_page = ClinicAccountsPage(self.content_area)
         elif page_key == "labs":
             self.current_page = LabsPage(self.content_area, current_user=self.current_user)
+        elif page_key == "n8n":
+            self.current_page = N8nPage(self.content_area)
         elif page_key == "settings":
             self.current_page = SettingsPage(self.content_area, current_user=self.current_user,
                                               on_settings_changed=self._reload_settings)

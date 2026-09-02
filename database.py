@@ -946,14 +946,8 @@ def set_setting_value(column_name, value):
         "system_font_family", "content_font_family", "system_font_size", "content_font_size",
         "language", "active_price_list_id", "require_password", "mini_calendar_width",
         "weekly_holidays", "schedule_start_hour", "schedule_end_hour",
-        "clinic_address", "tax_card_number", "whatsapp_hour_reminder_enabled",
-        "whatsapp_next_day_batch_enabled", "whatsapp_auto_archive_enabled",
-        "whatsapp_auto_reminder_template_id", "whatsapp_auto_thankyou_template_id",
-        "whatsapp_auto_booking_template_id", "whatsapp_auto_confirm_send",
-        "whatsapp_auto_wait_seconds", "whatsapp_auto_use_desktop_app",
-        "whatsapp_payment_thankyou_enabled", "whatsapp_next_day_batch_hour",
-        "whatsapp_next_day_batch_minute", "remember_login", "remembered_username",
-        "remembered_password", "show_ribbon_labels", "whatsapp_booking_confirmation_enabled",
+        "clinic_address", "tax_card_number", "remember_login", "remembered_username",
+        "remembered_password", "show_ribbon_labels",
         "theme_id", "nav_button_style", "icon_pattern",
         "financial_reset_v2_done", "expenses_reset_v1_done",
     }
@@ -3071,51 +3065,8 @@ def set_whatsapp_auto_settings(enabled=None, reminder_template_id=None, thankyou
                                 payment_thankyou_enabled=None, next_day_batch_hour=None,
                                 next_day_batch_minute=None, booking_confirmation_enabled=None,
                                 hour_reminder_enabled=None, next_day_batch_enabled=None):
-    """حفظ إعدادات الأرشفة التلقائية لواتساب (تُقرأ من صفحة واتساب وتُستخدم
-    من الحلقة الخلفية في main.py). كل نوع رسالة (تذكير الساعة/تأكيد الغد/
-    تأكيد الحجز/الشكر بعد الدفع) ليه تشيك بوكس تفعيل مستقل بيتحفظ لوحده"""
-    conn = get_connection()
-    current = get_settings()
-    conn.execute("""
-        UPDATE clinic_settings SET
-            whatsapp_auto_archive_enabled = ?,
-            whatsapp_auto_reminder_template_id = ?,
-            whatsapp_auto_thankyou_template_id = ?,
-            whatsapp_auto_confirm_send = ?,
-            whatsapp_auto_wait_seconds = ?,
-            whatsapp_auto_use_desktop_app = ?,
-            whatsapp_payment_thankyou_enabled = ?,
-            whatsapp_next_day_batch_hour = ?,
-            whatsapp_next_day_batch_minute = ?,
-            whatsapp_booking_confirmation_enabled = ?,
-            whatsapp_hour_reminder_enabled = ?,
-            whatsapp_next_day_batch_enabled = ?
-        WHERE id = 1
-    """, (
-        (1 if enabled else 0) if enabled is not None else current["whatsapp_auto_archive_enabled"],
-        reminder_template_id if reminder_template_id is not None
-            else current["whatsapp_auto_reminder_template_id"],
-        thankyou_template_id if thankyou_template_id is not None
-            else current["whatsapp_auto_thankyou_template_id"],
-        (1 if confirm_send else 0) if confirm_send is not None else current["whatsapp_auto_confirm_send"],
-        wait_seconds if wait_seconds is not None else current["whatsapp_auto_wait_seconds"],
-        (1 if use_desktop_app else 0) if use_desktop_app is not None
-            else current["whatsapp_auto_use_desktop_app"],
-        (1 if payment_thankyou_enabled else 0) if payment_thankyou_enabled is not None
-            else current["whatsapp_payment_thankyou_enabled"],
-        next_day_batch_hour if next_day_batch_hour is not None
-            else current["whatsapp_next_day_batch_hour"],
-        next_day_batch_minute if next_day_batch_minute is not None
-            else current["whatsapp_next_day_batch_minute"],
-        (1 if booking_confirmation_enabled else 0) if booking_confirmation_enabled is not None
-            else current["whatsapp_booking_confirmation_enabled"],
-        (1 if hour_reminder_enabled else 0) if hour_reminder_enabled is not None
-            else current["whatsapp_hour_reminder_enabled"],
-        (1 if next_day_batch_enabled else 0) if next_day_batch_enabled is not None
-            else current["whatsapp_next_day_batch_enabled"],
-    ))
-    conn.commit()
-    conn.close()
+    """أزيل نظام واتساب واستُبدل بـ n8n - هذه الوظيفة لم تعد تُستخدم (no-op)."""
+    return
 
 
 ARABIC_DAY_NAMES = {
