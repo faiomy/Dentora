@@ -23,8 +23,8 @@ from PySide6.QtCore import Qt
 from .dashboard_page import DashboardPage
 from .appointments_page import AppointmentsPage
 from .patients_page import PatientsPage
+from .procedures_page import ProceduresPage
 from .placeholder_pages import (
-    ProceduresPage,
     StaffPage,
     AccountsPage,
     ExpensesPage,
