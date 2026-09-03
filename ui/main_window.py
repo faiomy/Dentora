@@ -24,12 +24,12 @@ from .dashboard_page import DashboardPage
 from .appointments_page import AppointmentsPage
 from .patients_page import PatientsPage
 from .procedures_page import ProceduresPage
+from .staff_page import StaffPage
+from .settings_page import SettingsPage
 from .placeholder_pages import (
-    StaffPage,
     AccountsPage,
     ExpensesPage,
     IntegrationsPage,
-    SettingsPage,
 )
 
 
