@@ -20,8 +20,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt
 
+from .dashboard_page import DashboardPage
 from .placeholder_pages import (
-    DashboardPage,
     AppointmentsPage,
     PatientsPage,
     ProceduresPage,
