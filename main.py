@@ -32,7 +32,7 @@ from pages.labs_page import LabsPage
 # بيخلي كل الأحجام (width/height) المكتوبة في الكود تتعرض كما هي بالظبط.
 ctk.deactivate_automatic_dpi_awareness()
 
-ctk.set_appearance_mode("light")
+ctk.set_appearance_mode("system")
 
 
 def _attach_gradient_background(header_frame):

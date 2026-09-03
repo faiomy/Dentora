@@ -358,7 +358,7 @@ THEME_PRESETS = {
         "tab_active": "#1F3833", "tab_inactive": "#142521",
     },
 }
-DEFAULT_THEME_ID = "ocean_blue"
+DEFAULT_THEME_ID = "aero_glass"
 
 
 def darken_color(hex_color, factor=0.78):
