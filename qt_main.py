@@ -5,31 +5,36 @@ It launches a minimal placeholder main window.
 """
 
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QVBoxLayout
+import os
+from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtCore import Qt
 
+# Ensure the module path includes the project root (for imports of ui package)
+PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
-class PlaceholderWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Dentora – Qt Prototype")
-        self.resize(1000, 720)
-        central = QWidget()
-        self.setCentralWidget(central)
-        layout = QVBoxLayout()
-        central.setLayout(layout)
-        label = QLabel("Placeholder Qt UI – actual UI will be built in later phases.")
-        label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(label)
+from ui.login_dialog import LoginDialog
+from ui.main_window import MainWindow
 
 
 def main():
     app = QApplication(sys.argv)
-    # Global RTL layout for Arabic UI
+    # RTL layout for Arabic UI (global)
     app.setLayoutDirection(Qt.RightToLeft)
-    win = PlaceholderWindow()
-    win.show()
-    sys.exit(app.exec())
+
+    login = LoginDialog()
+    if login.exec() == LoginDialog.Accepted:
+        user = login.user
+        if not user:
+            QMessageBox.critical(None, "Error", "Login succeeded but no user data was returned.")
+            sys.exit(1)
+        main_win = MainWindow(user)
+        main_win.show()
+        sys.exit(app.exec())
+    else:
+        # Login cancelled or failed – exit application
+        sys.exit(0)
 
 
 if __name__ == "__main__":
