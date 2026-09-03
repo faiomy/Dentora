@@ -21,8 +21,8 @@ from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt
 
 from .dashboard_page import DashboardPage
+from .appointments_page import AppointmentsPage
 from .placeholder_pages import (
-    AppointmentsPage,
     PatientsPage,
     ProceduresPage,
     StaffPage,
