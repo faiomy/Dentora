@@ -87,7 +87,7 @@ HEADER_CELL_HEIGHT = HEADER_HEIGHT
 ROW_CELL_HEIGHT = ROW_HEIGHT
 # لون خط شبكة الجدول - نفس اللون المستخدم في جدول المرضى الرئيسي، عشان
 # الشكل يبقى متطابق مع باقي الشاشات
-GRID_LINE = "#C7CCD6"
+GRID_LINE = theme.BORDER
 
 
 def _grid_col(i):

@@ -567,6 +567,11 @@ class ClinicApp(ctk.CTk):
         البرنامج الثابتة (Dentora) على النافذة، بدل ما كانت بتحط لوجو العيادة"""
         _set_window_icon(self, DENTORA_ICON_PATH)
 
+    def _logout(self):
+        """Log out the current user and show the login screen again."""
+        self.withdraw()
+        LoginScreen(self, on_success=self._on_login_success)
+
     def _on_login_success(self, user):
         self.current_user = user
         self.deiconify()
@@ -582,7 +587,7 @@ class ClinicApp(ctk.CTk):
         icons.set_icon_pattern(self.settings.get("icon_pattern", "outline"))
         self.configure(fg_color=theme.BG_MAIN)
 
-        self._build_top_nav()
+        self._build_sidebar()
         self._build_content_area()
         self.show_page("appointments")
         # WhatsApp auto-archive removed - replaced by n8n integration
@@ -1023,14 +1028,63 @@ class ClinicApp(ctk.CTk):
 
     def _highlight_active_nav(self, active_key):
         self._active_nav_key = active_key
-        self._redraw_nav_bar()
+        if hasattr(self, "nav_canvas"):
+            self._redraw_nav_bar()
+        # Update sidebar active state
+        if hasattr(self, "sidebar_buttons"):
+            for k, btn in self.sidebar_buttons.items():
+                if k == active_key:
+                    btn.configure(fg_color=theme.PRIMARY_LIGHT, text_color="#FFFFFF")
+                else:
+                    btn.configure(fg_color="transparent", text_color=theme.TEXT_DARK)
 
     # ---------------- منطقة المحتوى ----------------
 
     def _build_content_area(self):
         self.content_area = ctk.CTkFrame(self, fg_color=theme.BG_MAIN, corner_radius=0)
-        self.content_area.pack(side="top", fill="both", expand=True, padx=24, pady=(12, 16))
+        self.content_area.pack(side="right", fill="both", expand=True, padx=24, pady=(12, 16))
 
+    def _build_sidebar(self):
+        # Sidebar container (fixed width, RTL layout)
+        self.sidebar_frame = ctk.CTkFrame(self, fg_color=theme.CARD_BG, width=240, corner_radius=0)
+        self.sidebar_frame.pack(side="left", fill="y")
+        self.sidebar_frame.pack_propagate(False)
+
+        # Branding (logo + app name)
+        logo_label = ctk.CTkLabel(self.sidebar_frame, text="Dentora", font=theme.FONT_TITLE,
+                                   text_color=theme.TEXT_DARK)
+        logo_label.pack(pady=12)
+
+        # Navigation buttons
+        self.sidebar_buttons = {}
+        for key, icon_name, label, permission in self.RIBBON_ITEMS:
+            btn = ctk.CTkButton(self.sidebar_frame, text=label, width=200, height=44,
+                                 fg_color="transparent", hover_color=theme.BG_MAIN,
+                                 anchor="w", corner_radius=0,
+                                 command=lambda k=key: self.show_page(k))
+            # Icon
+            icon_img = self._icon_pil_for(icon_name, 24, theme.PRIMARY_LIGHT)
+            if icon_img:
+                ctk_img = ctk.CTkImage(light_image=icon_img, size=icon_img.size)
+                btn.configure(image=ctk_img)
+                btn._icon_image = ctk_img  # keep reference
+            btn.pack(pady=2, padx=10, fill="x")
+            self.sidebar_buttons[key] = btn
+
+        # Spacer to push user section to bottom
+        spacer = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
+        spacer.pack(expand=True, fill="both")
+
+        # User info and logout
+        user_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
+        user_frame.pack(side="bottom", fill="x", pady=10)
+        self.user_label = ctk.CTkLabel(user_frame,
+                                        text=f"{self.current_user['full_name']} ({self.current_user['role']})",
+                                        font=theme.FONT_SMALL, text_color=theme.TEXT_DARK)
+        self.user_label.pack(pady=4)
+        logout_btn = ctk.CTkButton(user_frame, text="تسجيل خروج", fg_color=theme.ACCENT_BORDER,
+                                   hover_color=theme.ACCENT_BORDER, command=self._logout)
+        logout_btn.pack(pady=4)
     def show_page(self, page_key, open_patient_id=None):
         if page_key == "exit":
             self.destroy()
@@ -1103,10 +1157,9 @@ class ClinicApp(ctk.CTk):
         except Exception:
             pass
 
-        self.nav_bar.destroy()
-        if hasattr(self, "nav_divider") and self.nav_divider.winfo_exists():
-            self.nav_divider.destroy()
-        self._build_top_nav()
+        if hasattr(self, "sidebar_frame"):
+            self.sidebar_frame.destroy()
+        self._build_sidebar()
 
         self.show_page("settings")
         if prev_tab:

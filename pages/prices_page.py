@@ -48,26 +48,26 @@ PAGE_FONT = (theme.CONTENT_FONT_FAMILY, COUNT_FONT_SIZE, "bold")
 ROW_HEIGHT = 44
 HEADER_HEIGHT = 42
 # لون خطوط الشبكة بين كل الخلايا (نفس لون خط شبكة باقي جداول البرنامج)
-GRID_LINE = "#C7CCD6"
+GRID_LINE = theme.BORDER
 # هيدر الجدول بقى بنفس لون تدرّج هيدر البرنامج نفسه (مش لون تاني منفصل)
 # عشان يماشي لون الثيم المفعّل فعليًا أيًا كان
 HEADER_BG = theme.HEADER_GRAD_END
 HEADER_TEXT_COLOR = "#FFFFFF"
-BLACK_BORDER = "#000000"
+BLACK_BORDER = theme.BORDER
 
 # ---------------- شكل موحّد لكل أزرار الصفحة ----------------
 # نفس اللون والحجم والشكل لكل زرار في الصفحة (بدل ما كان كل زرار بلون
 # وحجم مختلف)، عشان الصفحة تبان متسقة ومريحة بصريًا. بنستخدم نفس لوني
 # تدرّج هيدر البرنامج (HEADER_GRAD_END/START) بدل PRIMARY_LIGHT عشان لون
 # الأزرار يماشي لون الثيم المفعّل فعليًا (نفس الاتفاقية المستخدمة في باقي
-# صفحات البرنامج لأزرار الإجراء الأساسية)، مع إطار أسود حوالين كل زرار
+# صفحات البرنامج لأزرار الإجراء الأساسية)، مع حد رفيع محايد ناعم
 BTN_HEIGHT = 40
-BTN_RADIUS = 0  # زوايا حادة 90 درجة بدل المدورة
+BTN_RADIUS = theme.RADIUS_MD  # زوايا مدورة معتدلة بدل الحادة
 BTN_COLOR = theme.HEADER_GRAD_END
 BTN_HOVER = theme.HEADER_GRAD_START
 BTN_TEXT_COLOR = "#FFFFFF"
 BTN_BORDER_WIDTH = 1
-# لون مميز بس لزرار الحذف (نفس الحجم والشكل والفونط والإطار الأسود زي
+# لون مميز بس لزرار الحذف (نفس الحجم والشكل والفونط والإطار زي
 # باقي الأزرار بالظبط، فرق اللون بس عشان يبقى واضح إنه إجراء حذف)
 BTN_DANGER_COLOR = theme.DANGER
 BTN_DANGER_HOVER = theme.darken_color(theme.DANGER, 0.85)
@@ -119,11 +119,11 @@ class PricesPage(ctk.CTkFrame):
             side="left", padx=(6, 0))
         # الطريقة الوحيدة دلوقتي لتعديل أو حذف الإجراءات الطبية نفسها
         # بالإضافة لإدارة أنواعها الفرعية وألوانها وأسعارها
-        _make_button(header, "⚙ إدارة الإجراءات الطبية", self._open_variants_manager).pack(
+        _make_button(header, "إدارة الإجراءات الطبية", self._open_variants_manager).pack(
             side="left", padx=6)
         # زرار الحفظ الوحيد للصفحة كلها - أي تعديل (اسم/رمز) في أي عدد
         # من البنود بيتجمع، ولما تدوس هنا بيتحفظ كل حاجة مرة واحدة
-        self.save_all_btn = _make_button(header, "💾 حفظ كل التغييرات", self._save_all)
+        self.save_all_btn = _make_button(header, "حفظ كل التغييرات", self._save_all)
         self.save_all_btn.pack(side="left", padx=6)
 
         lists_row = ctk.CTkFrame(self, fg_color="transparent")

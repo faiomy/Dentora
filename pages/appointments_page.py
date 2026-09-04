@@ -30,8 +30,10 @@ from pages.time_auto_entry import TimeAutoEntry
 
 WEEKDAY_NAMES = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
 
-HOUR_HEIGHT = 43
-DIVIDER_COLOR = "#AEB6C2"
+HOUR_HEIGHT = 48
+DIVIDER_COLOR = theme.BORDER
+GRIDLINE_COLOR = "#E8EAED"
+GRIDLINE_HALF_COLOR = "#F1F3F4"
 ARABIC_MONTHS = [
     "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
     "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
@@ -109,48 +111,51 @@ class AppointmentsPage(ctk.CTkFrame):
 
     def _build(self):
         header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(fill="x", pady=(0, 10))
+        header.pack(fill="x", pady=(0, 12))
         ctk.CTkLabel(header, text="المواعيد", font=theme.FONT_TITLE,
                      text_color=theme.TEXT_DARK).pack(side="right", anchor="n")
-        theme.make_shadowed_button(
-            header, "+ موعد جديد", command=lambda: self.open_appointment_dialog(),
-            width=140, height=38, fg_color=theme.ACCENT_BORDER, font=theme.FONT_NORMAL,
-            canvas_bg=theme.BG_MAIN).pack(side="left")
+        ctk.CTkButton(
+            header, text="+ موعد جديد", command=lambda: self.open_appointment_dialog(),
+            width=150, height=36, corner_radius=8,
+            fg_color=theme.PRIMARY_LIGHT, hover_color=theme.ACCENT_BORDER,
+            font=theme.FONT_NORMAL, text_color="#FFFFFF").pack(side="left")
 
         controls = ctk.CTkFrame(self, fg_color="transparent")
-        controls.pack(fill="x", pady=(0, 10))
+        controls.pack(fill="x", pady=(0, 12))
 
-        theme.make_shadowed_button(
-            controls, "اليوم", command=self._go_today, width=72, height=27,
-            fg_color=theme.ACCENT_BORDER, font=theme.FONT_TABLE_NAV_BUTTON,
-            canvas_bg=theme.BG_MAIN).pack(side="right", padx=4)
+        ctk.CTkButton(
+            controls, text="اليوم", command=self._go_today, width=80, height=32,
+            corner_radius=8, fg_color=theme.CARD_BG, text_color=theme.TEXT_DARK,
+            border_width=1, border_color=theme.BORDER,
+            hover_color=theme.lighten_color(theme.PRIMARY_LIGHT, 0.85),
+            font=theme.FONT_TABLE_NAV_BUTTON).pack(side="right", padx=4)
 
-        # أزرار عدد الأيام (1 لحد 7) بدل القايمة المنسدلة
-        days_row = ctk.CTkFrame(controls, fg_color=theme.BG_MAIN, corner_radius=8)
+        days_row = ctk.CTkFrame(controls, fg_color="transparent")
         days_row.pack(side="right", padx=10)
         ctk.CTkLabel(days_row, text="أيام:", font=theme.FONT_SMALL,
-                     text_color=theme.TEXT_MUTED).pack(side="right", padx=(8, 2))
+                     text_color=theme.TEXT_MUTED).pack(side="right", padx=(8, 4))
         self.day_count_buttons = {}
         for n in range(1, 8):
-            btn = ctk.CTkButton(days_row, text=str(n), width=30, height=30, corner_radius=6,
+            btn = ctk.CTkButton(days_row, text=str(n), width=32, height=32, corner_radius=8,
                                  font=theme.FONT_SMALL,
                                  fg_color=theme.CARD_BG, text_color=theme.TEXT_DARK,
                                  border_width=1, border_color=theme.BORDER,
+                                 hover_color=theme.lighten_color(theme.PRIMARY_LIGHT, 0.85),
                                  command=lambda n=n: self._on_days_button(n))
-            btn.pack(side="right", padx=2, pady=4)
+            btn.pack(side="right", padx=2, pady=2)
             self.day_count_buttons[n] = btn
 
         self.save_days_btn = ctk.CTkButton(
-            days_row, text="💾", width=28, height=28, corner_radius=6,
+            days_row, text="✓", width=32, height=32, corner_radius=8,
             font=theme.FONT_SMALL, fg_color=theme.CARD_BG, text_color=theme.TEXT_DARK,
             border_width=1, border_color=theme.BORDER, hover_color=theme.BG_MAIN,
             command=self._save_days_pref)
-        self.save_days_btn.pack(side="right", padx=(6, 4), pady=4)
+        self.save_days_btn.pack(side="right", padx=(6, 4), pady=2)
 
-        # فلتر الطبيب
         doctors = db.get_doctors()
         doctor_names = ["كل الأطباء"] + [d["full_name"] for d in doctors]
-        self.doctor_filter_menu = ctk.CTkOptionMenu(controls, values=doctor_names, width=160,
+        self.doctor_filter_menu = ctk.CTkOptionMenu(controls, values=doctor_names, width=180,
+                                                      height=32, corner_radius=8,
                                                       font=theme.FONT_NORMAL,
                                                       command=self._on_doctor_filter_change,
                                                       **theme.optionmenu_colors())
@@ -158,7 +163,7 @@ class AppointmentsPage(ctk.CTkFrame):
         self.doctor_filter_menu.pack(side="right", padx=10)
 
         self.range_label = ctk.CTkLabel(controls, text="", font=theme.FONT_SUBTITLE,
-                                         text_color=theme.TEXT_DARK)
+                                         text_color=theme.TEXT_MUTED)
         self.range_label.pack(side="left", padx=10)
 
         # الجسم: الشارت الرئيسي على الشمال + الكالندر الشهري على اليمين
@@ -179,20 +184,16 @@ class AppointmentsPage(ctk.CTkFrame):
 
         # ---- الهيدر الثابت (أسماء وتواريخ الأيام) - ثابت فوق ومبيتحركش مع
         # سكرول الساعات تحته إطلاقًا ----
-        self.fixed_header_frame = ctk.CTkFrame(main_col, fg_color=theme.CARD_BG, corner_radius=12,
+        self.fixed_header_frame = ctk.CTkFrame(main_col, fg_color=theme.CARD_BG, corner_radius=10,
                                                 height=self.HEADER_HEIGHT + self.HEADER_BORDER_HEIGHT)
         self.fixed_header_frame.pack(side="top", fill="x", pady=(0, 0))
         self.fixed_header_frame.pack_propagate(False)
 
-        # خط أسود عريض تحت الهيدر بيملا المسافة كلها بين الهيدر وجدول
-        # المواعيد، بدل ما يبقى فيه فراغ أبيض فاضي بينهم
-        header_bottom_border = ctk.CTkFrame(self.fixed_header_frame, fg_color=theme.ACCENT_BORDER,
+        header_bottom_border = ctk.CTkFrame(self.fixed_header_frame, fg_color=theme.BORDER,
                                              height=self.HEADER_BORDER_HEIGHT, corner_radius=0)
         header_bottom_border.pack(side="bottom", fill="x")
         header_bottom_border.pack_propagate(False)
 
-        # سبيسر بعرض شريط التمرير بالظبط (SCROLLBAR_WIDTH)، عشان هيدر الأيام
-        # يتزبط فوق أعمدة الجدول تحته بالظبط - نفس الرقم مستخدم في الحسابين
         header_spacer = ctk.CTkFrame(self.fixed_header_frame, fg_color="transparent",
                                       width=self.SCROLLBAR_WIDTH)
         header_spacer.pack(side="left", fill="y")
@@ -203,10 +204,7 @@ class AppointmentsPage(ctk.CTkFrame):
         self.header_canvas.pack(side="left", fill="both", expand=True)
 
         # ---- منطقة الجدول القابلة للتمرير (الساعات + المواعيد) ----
-        # بنعمل السكرول بإيدينا (Canvas + Scrollbar عاديين) بدل الاعتماد على
-        # مكوّن جاهز بيحجز مساحة داخلية مش معروف مقدارها بالظبط، عشان نضمن
-        # إن عرض شريط التمرير المحجوز في الحساب = عرضه الحقيقي فعليًا 100%
-        grid_container = ctk.CTkFrame(main_col, fg_color=theme.CARD_BG, corner_radius=12)
+        grid_container = ctk.CTkFrame(main_col, fg_color=theme.CARD_BG, corner_radius=10)
         grid_container.pack(side="top", fill="both", expand=True)
         self.grid_container = grid_container
 
@@ -271,16 +269,20 @@ class AppointmentsPage(ctk.CTkFrame):
         _save_appt_prefs(self.days_count)
         if hasattr(self.mini_cal, "save_size"):
             self.mini_cal.save_size()
-        self.save_days_btn.configure(text="✔", fg_color=theme.SUCCESS, text_color="#FFFFFF")
+        self.save_days_btn.configure(text="✓", fg_color=theme.SUCCESS, text_color="#FFFFFF",
+                                      border_color=theme.SUCCESS)
         self.after(1200, lambda: self.save_days_btn.configure(
-            text="💾", fg_color=theme.CARD_BG, text_color=theme.TEXT_DARK))
+            text="✓", fg_color=theme.CARD_BG, text_color=theme.TEXT_DARK,
+            border_color=theme.BORDER))
 
     def _highlight_days_button(self):
         for n, btn in self.day_count_buttons.items():
             if n == self.days_count:
-                btn.configure(fg_color=theme.SUCCESS, text_color="#FFFFFF")
+                btn.configure(fg_color=theme.PRIMARY_LIGHT, text_color="#FFFFFF",
+                              border_color=theme.PRIMARY_LIGHT)
             else:
-                btn.configure(fg_color=theme.CARD_BG, text_color=theme.TEXT_DARK)
+                btn.configure(fg_color=theme.CARD_BG, text_color=theme.TEXT_DARK,
+                              border_color=theme.BORDER)
 
     def _on_doctor_filter_change(self, label):
         self.doctor_filter = None if label == "كل الأطباء" else label
@@ -448,8 +450,15 @@ class AppointmentsPage(ctk.CTkFrame):
             d = days[col["day_index"]]
             is_holiday = db.is_holiday(d)
             is_today = d == date.today()
-            bg = "#D6D9DE" if is_holiday else (theme.BG_MAIN if not is_today else theme.lighten_color(theme.ACCENT_BORDER, 0.82))
-            text_color = theme.TEXT_MUTED if is_holiday else (theme.ACCENT_BORDER if is_today else theme.TEXT_DARK)
+            if is_holiday:
+                bg = "#F5F5F5"
+                text_color = theme.TEXT_MUTED
+            elif is_today:
+                bg = theme.lighten_color(theme.PRIMARY_LIGHT, 0.88)
+                text_color = theme.PRIMARY_LIGHT
+            else:
+                bg = theme.CARD_BG
+                text_color = theme.TEXT_DARK
 
             canvas.create_rectangle(col["x_left"], 0, col["x_right"], height,
                                      fill=bg, outline=DIVIDER_COLOR)
@@ -498,16 +507,13 @@ class AppointmentsPage(ctk.CTkFrame):
         for col in layout["columns"]:
             d = days[col["day_index"]]
             is_holiday = db.is_holiday(d)
-            bg = "#EDEEF0" if is_holiday else theme.CARD_BG
+            bg = "#FAFAFA" if is_holiday else theme.CARD_BG
             canvas.create_rectangle(col["x_left"], 0, col["x_right"], total_height,
                                      fill=bg, outline="")
 
-        # خطوط الساعات - نفس اللون بالظبط لخط الساعة الكاملة (زي 13:00) وخط
-        # نص الساعة (زي 13:30)، والفرق بينهم في السُمك بس (الساعة الكاملة
-        # أعرض بمقدار مرة ونص) عشان الشكل يبقى متناسق ومش شاذ
-        GRIDLINE_COLOR = "#C7CBD1"
+        # خطوط الساعات - خفيفة ونظيفة
         HALF_HOUR_WIDTH = 1.0
-        FULL_HOUR_WIDTH = 1.5
+        FULL_HOUR_WIDTH = 1.2
         full_left, full_right = 0, layout["time_col_right"]
         for h in range(self.start_hour, self.end_hour + 1):
             y = (h - self.start_hour) * HOUR_HEIGHT
@@ -516,7 +522,7 @@ class AppointmentsPage(ctk.CTkFrame):
             if h < self.end_hour:
                 y_half = y + HOUR_HEIGHT / 2
                 canvas.create_line(full_left, y_half, full_right, y_half,
-                                    fill=GRIDLINE_COLOR, width=HALF_HOUR_WIDTH, tags="gridline")
+                                    fill=GRIDLINE_HALF_COLOR, width=HALF_HOUR_WIDTH, tags="gridline")
 
         # الفواصل الواضحة بين الأعمدة (نفس دالة الهيدر بالظبط)
         self._draw_dividers(canvas, layout, total_height)
@@ -526,12 +532,12 @@ class AppointmentsPage(ctk.CTkFrame):
             y = (h - self.start_hour) * HOUR_HEIGHT
             canvas.create_text(layout["time_col_right"] - 8, y, text=f"{h % 24:02d}:00",
                                 font=theme.FONT_HOUR_TICK,
-                                fill=theme.TEXT_DARK, anchor="ne")
+                                fill=theme.TEXT_MUTED, anchor="ne")
             if h < self.end_hour:
                 y_half = y + HOUR_HEIGHT / 2
                 canvas.create_text(layout["time_col_right"] - 8, y_half, text="30",
                                     font=theme.FONT_HALF_HOUR_TICK,
-                                    fill=theme.TEXT_MUTED, anchor="ne")
+                                    fill="#BBBBBB", anchor="ne")
 
         # المواعيد + خط الوقت الحالي
         self._time_col_range = None
@@ -624,15 +630,15 @@ class AppointmentsPage(ctk.CTkFrame):
             return
         y = (now.hour - self.start_hour) * HOUR_HEIGHT + (now.minute / 60) * HOUR_HEIGHT
         canvas.create_line(time_col_left, y, time_col_right, y,
-                            fill="#E53935", width=2, tags="nowline")
+                            fill=theme.DANGER, width=2, tags="nowline")
         arrow_size = 6
         canvas.create_polygon(
             time_col_left, y - arrow_size,
             time_col_left - arrow_size, y,
             time_col_left, y + arrow_size,
-            fill="#E53935", outline="", tags="nowline")
+            fill=theme.DANGER, outline="", tags="nowline")
         canvas.create_oval(time_col_right - 5, y - 5, time_col_right + 5, y + 5,
-                            fill="#E53935", outline="", tags="nowline")
+                            fill=theme.DANGER, outline="", tags="nowline")
 
     def _fit_text(self, text, max_width, font):
         """بيرجع النص كامل لو مقاسه أصلاً أصغر من المساحة المتاحة، أو نسخة
@@ -678,8 +684,14 @@ class AppointmentsPage(ctk.CTkFrame):
         color = appt.get("color") or status_info["color"]
 
         pad = 3
-        canvas.create_rectangle(x_left + pad, y1, x_right - pad, y2, fill=color, outline="#FFFFFF",
-                                 width=1, tags=("appt", f"appt_{appt['id']}"))
+        # Add a subtle rounded block with a left accent bar for a modern look
+        canvas.create_rectangle(x_left + pad, y1, x_right - pad, y2, fill=color, outline="",
+                                 width=0, tags=("appt", f"appt_{appt['id']}"))
+        # Accent bar on the left edge
+        accent_w = 3
+        canvas.create_rectangle(x_left + pad, y1, x_left + pad + accent_w, y2,
+                                 fill=theme.darken_color(color, 0.85), outline="",
+                                 tags=("appt", f"appt_{appt['id']}"))
         col_w = x_right - x_left
         label_text = f"{appt['appt_time']} - {appt['full_name']}"
         # رقم التليفون بيتضاف بس لو العمود واسع بما يكفي (زي أوضاع يوم واحد/
@@ -727,8 +739,8 @@ class AppointmentsPage(ctk.CTkFrame):
         x = event.x_root + 16
         y = event.y_root + 12
         tip.wm_geometry(f"+{x}+{y}")
-        tk.Label(tip, text=text, bg="#1B1E23", fg="#FFFFFF",
-                 font=theme.FONT_APPT_TOOLTIP, padx=10, pady=8,
+        tk.Label(tip, text=text, bg=theme.TEXT_DARK, fg="#FFFFFF",
+                 font=theme.FONT_APPT_TOOLTIP, padx=12, pady=8,
                  justify="right", anchor="e", wraplength=260).pack()
         self._appt_tooltip = tip
 
@@ -776,8 +788,8 @@ class AppointmentsPage(ctk.CTkFrame):
     # ---------------- تفاصيل/تعديل موعد ----------------
 
     APPT_COLOR_PALETTE = [
-        "#1E88E5", "#43A047", "#8E24AA", "#E53935", "#FDD835",
-        "#00897B", "#6D4C41", "#3949AB", "#D81B60", "#C62828",
+        "#00897B", "#1E88E5", "#43A047", "#8E24AA", "#E53935",
+        "#FB8C00", "#6D4C41", "#3949AB", "#D81B60", "#C62828",
     ]
 
     def _open_appt_details(self, appt):
@@ -840,10 +852,10 @@ class AppointmentsPage(ctk.CTkFrame):
         date_row.pack(padx=26, pady=(0, ITEM_GAP), anchor="e", fill="x")
         ctk.CTkLabel(date_row, text="التاريخ", font=F).pack(side="right", padx=(14, 0))
         date_display_btn = ctk.CTkButton(
-            date_row, text=f"📅 {selected_date_holder['date'].strftime('%Y-%m-%d')}",
-            width=170, height=36, fg_color=theme.CARD_BG, text_color=theme.TEXT_DARK,
-            border_width=1, border_color=theme.BORDER, hover_color=theme.BG_MAIN,
-            font=F)
+            date_row, text=f"  {selected_date_holder['date'].strftime('%Y-%m-%d')}",
+            width=170, height=36, corner_radius=8, fg_color=theme.CARD_BG,
+            text_color=theme.TEXT_DARK, border_width=1, border_color=theme.BORDER,
+            hover_color=theme.BG_MAIN, font=F)
         date_display_btn.pack(side="right")
 
         def open_date_picker():
@@ -857,7 +869,7 @@ class AppointmentsPage(ctk.CTkFrame):
 
             def on_pick(d):
                 selected_date_holder["date"] = d
-                date_display_btn.configure(text=f"📅 {d.strftime('%Y-%m-%d')}")
+                date_display_btn.configure(text=f"  {d.strftime('%Y-%m-%d')}")
                 picker.destroy()
 
             cal = MiniCalendar(picker, on_date_selected=on_pick, width=420)
@@ -957,9 +969,9 @@ class AppointmentsPage(ctk.CTkFrame):
         # زرار إلغاء/حذف الموعد بنفس ارتفاع زراري الحفظ والإلغاء (30px)،
         # وبعرض = 1/3 عرض السطر بس، وفي النص (سنتر) زي زراير الفوتر
         cancel_appt_w = footer_line_w // 3
-        ctk.CTkButton(scroll, text="🗑 حذف الموعد", fg_color=theme.DANGER,
+        ctk.CTkButton(scroll, text="حذف الموعد", fg_color=theme.DANGER,
                       hover_color=theme.darken_color(theme.DANGER, 0.85),
-                      width=cancel_appt_w, height=30,
+                      width=cancel_appt_w, height=32, corner_radius=8,
                       font=F_BTN, command=confirm_delete).pack(pady=(0, 8))
 
 
@@ -987,15 +999,18 @@ class AppointmentsPage(ctk.CTkFrame):
         # ---- زرار الحفظ (أخضر) وزرار الإلغاء (أحمر، واضح) بجوار بعض في
         # نفس السطر أسفل النافذة، مصغّرين وبيملوا مع بعض ربع عرض السطر
         # بس، ومتوسطين ----
-        save_btn = ctk.CTkButton(btns_frame, text="حفظ", width=each_btn_w, height=30,
-                                  fg_color=theme.SUCCESS,
-                                  hover_color=theme.darken_color(theme.SUCCESS, 0.85),
+        save_btn = ctk.CTkButton(btns_frame, text="حفظ", width=each_btn_w, height=34,
+                                  corner_radius=8, fg_color=theme.PRIMARY_LIGHT,
+                                  text_color="#FFFFFF",
+                                  hover_color=theme.ACCENT_BORDER,
                                   font=F_BTN, command=confirm_save)
         save_btn.pack(side="right", padx=(4, 0))
 
-        cancel_btn = ctk.CTkButton(btns_frame, text="إلغاء", width=each_btn_w, height=30,
-                                    fg_color=theme.DANGER,
-                                    hover_color=theme.darken_color(theme.DANGER, 0.85),
+        cancel_btn = ctk.CTkButton(btns_frame, text="إلغاء", width=each_btn_w, height=34,
+                                    corner_radius=8, fg_color=theme.CARD_BG,
+                                    text_color=theme.TEXT_DARK,
+                                    border_width=1, border_color=theme.BORDER,
+                                    hover_color=theme.BG_MAIN,
                                     font=F_BTN, command=dialog.destroy)
         cancel_btn.pack(side="right", padx=(0, 4))
 
@@ -1123,10 +1138,10 @@ class AppointmentsPage(ctk.CTkFrame):
         ctk.CTkLabel(form_grid, text="التاريخ", font=theme.FONT_NORMAL).grid(
             row=0, column=LABEL_COL, sticky="e", padx=(10, 0), pady=6)
         date_display_btn = ctk.CTkButton(
-            form_grid, text=f"📅 {selected_date_holder['date'].strftime('%Y-%m-%d')}",
-            width=170, height=36, fg_color=theme.CARD_BG, text_color=theme.TEXT_DARK,
-            border_width=1, border_color=theme.BORDER, hover_color=theme.BG_MAIN,
-            font=theme.FONT_NORMAL)
+            form_grid, text=f"  {selected_date_holder['date'].strftime('%Y-%m-%d')}",
+            width=170, height=36, corner_radius=8, fg_color=theme.CARD_BG,
+            text_color=theme.TEXT_DARK, border_width=1, border_color=theme.BORDER,
+            hover_color=theme.BG_MAIN, font=theme.FONT_NORMAL)
         date_display_btn.grid(row=0, column=0, columnspan=4, sticky="e", pady=6)
 
         def open_date_picker():
@@ -1144,7 +1159,7 @@ class AppointmentsPage(ctk.CTkFrame):
 
             def on_pick(d):
                 selected_date_holder["date"] = d
-                date_display_btn.configure(text=f"📅 {d.strftime('%Y-%m-%d')}")
+                date_display_btn.configure(text=f"  {d.strftime('%Y-%m-%d')}")
                 picker.destroy()
 
             cal = MiniCalendar(picker, on_date_selected=on_pick, width=420)
@@ -1260,8 +1275,11 @@ class AppointmentsPage(ctk.CTkFrame):
 
         # زرار الحفظ - في أقصى شمال الصفحة، طويل رأسيًا بيغطي كل الجدول
         # (التاريخ + الوقت + الطبيب) وضيق أفقيًا
-        save_btn = ctk.CTkButton(content_row, text="✔\nحفظ", width=80, height=220,
-                                  fg_color=theme.SUCCESS, font=theme.FONT_NORMAL, command=save)
+        save_btn = ctk.CTkButton(content_row, text="حفظ", width=90, height=220,
+                                  corner_radius=10, fg_color=theme.PRIMARY_LIGHT,
+                                  text_color="#FFFFFF",
+                                  hover_color=theme.ACCENT_BORDER,
+                                  font=theme.FONT_NORMAL, command=save)
         save_btn.pack(side="left", padx=(0, 4), pady=(2, 0))
 
     def _send_booking_confirmation(self, patient, appt_date, appt_time, doctor_name):
@@ -1274,7 +1292,7 @@ class AppointmentsPage(ctk.CTkFrame):
         # الأكتر شيوعًا (متابعة المريض)؛ الضغطة اليمين بقت هي اللي بتجيب
         # اختيار تفاصيل الحجز نفسه وتعديله (استخدام أقل تكرارًا)
         menu = tk.Menu(self, tearoff=0, font=theme.FONT_CONTEXT_MENU)
-        menu.add_command(label="📅  تفاصيل الحجز وتعديله",
+        menu.add_command(label="تفاصيل الحجز وتعديله",
                           command=lambda: self._open_appt_details(appt))
         try:
             menu.tk_popup(event.x_root, event.y_root)

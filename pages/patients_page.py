@@ -122,11 +122,11 @@ class PatientsPage(ctk.CTkFrame):
         ("رقم الملف", 90, "id"),
     ]
 
-    HEADER_BG = "#1B1E23"
+    HEADER_BG = theme.PRIMARY_LIGHT
     HEADER_TEXT = "#FFFFFF"
     ROW_BG_A = "#FFFFFF"
-    ROW_BG_B = "#EEF1F6"
-    GRID_LINE = "#C7CCD6"
+    ROW_BG_B = "#F6F8F9"
+    GRID_LINE = theme.BORDER
 
     @staticmethod
     def _calc_age(birth_date_str):
@@ -377,7 +377,7 @@ class PatientsPage(ctk.CTkFrame):
         def save_layout():
             db.save_ui_layout(LAYOUT_KEY, layout)
             save_layout_btn.configure(text="✔ اتحفظ الشكل")
-            save_layout_btn.after(1400, lambda: save_layout_btn.configure(text="💾 حفظ الشكل"))
+            save_layout_btn.after(1400, lambda: save_layout_btn.configure(text="حفظ الشكل"))
 
         def reset_layout():
             db.reset_ui_layout(LAYOUT_KEY)
@@ -392,7 +392,7 @@ class PatientsPage(ctk.CTkFrame):
                                          text_color=theme.TEXT_DARK, border_width=1,
                                          border_color=theme.BORDER, command=toggle_edit_mode)
         edit_toggle_btn.pack(side="right", padx=4)
-        save_layout_btn = ctk.CTkButton(toolbar, text="💾 حفظ الشكل", width=120, height=32,
+        save_layout_btn = ctk.CTkButton(toolbar, text="حفظ الشكل", width=120, height=32,
                                          font=theme.FONT_SMALL, fg_color=theme.PRIMARY_LIGHT,
                                          command=save_layout)
         save_layout_btn.pack(side="right", padx=4)
@@ -1228,25 +1228,25 @@ class PatientsPage(ctk.CTkFrame):
             btns_wrap.grid_columnconfigure((0, 1, 2), weight=1)
 
             ctk.CTkButton(btns_wrap, text="+ دفعة", height=30, corner_radius=8,
-                          fg_color=theme.SUCCESS, hover_color="#2E7D32",
+                          fg_color=theme.SUCCESS, hover_color=theme.lighten_color(theme.SUCCESS, 0.15),
                           font=btn_font,
                           command=lambda: self._open_payment_dialog(patient_id)
                           ).grid(row=0, column=2, sticky="ew", padx=(4, 0))
             ctk.CTkButton(btns_wrap, text="اضافة مستحق", height=30, corner_radius=8,
-                          fg_color=theme.PRIMARY_LIGHT, hover_color="#1565C0",
+                          fg_color=theme.PRIMARY_LIGHT, hover_color=theme.lighten_color(theme.PRIMARY_LIGHT, 0.15),
                           font=btn_font,
                           command=lambda: self._open_charge_dialog(patient_id)
                           ).grid(row=0, column=1, sticky="ew", padx=4)
-            ctk.CTkButton(btns_wrap, text="🖨️ طباعة", height=30, corner_radius=8,
-                          fg_color=theme.ACCENT_BORDER, hover_color="#0A3980",
+            ctk.CTkButton(btns_wrap, text="طباعة", height=30, corner_radius=8,
+                          fg_color=theme.ACCENT_BORDER, hover_color=theme.lighten_color(theme.ACCENT_BORDER, 0.15),
                           font=btn_font,
                           command=lambda: self._open_print_statement_dialog(patient_id)
                           ).grid(row=0, column=0, sticky="ew", padx=(0, 4))
         else:
             btn_wrap = ctk.CTkFrame(actions_row, fg_color="transparent")
             btn_wrap.place(relx=1.0, rely=0.5, anchor="e", relwidth=0.2)
-            ctk.CTkButton(btn_wrap, text="🖨️ طباعة", height=30, corner_radius=8,
-                          fg_color=theme.ACCENT_BORDER, hover_color="#0A3980",
+            ctk.CTkButton(btn_wrap, text="طباعة", height=30, corner_radius=8,
+                          fg_color=theme.ACCENT_BORDER, hover_color=theme.lighten_color(theme.ACCENT_BORDER, 0.15),
                           font=btn_font,
                           command=lambda: self._open_print_statement_dialog(patient_id)
                           ).pack(fill="x")
@@ -1357,7 +1357,8 @@ class PatientsPage(ctk.CTkFrame):
 
         # زرار التأكيد "✔" بنفس لون النجاح المستخدم في الثيم وبنفس فونط
         # الجدول (بولد) - مش زرار "حفظ" عادي، شيك واضح يفهم منه إنه تأكيد
-        ctk.CTkButton(dialog, text="✔  تأكيد الدفعة", height=46, fg_color=theme.SUCCESS,
+        ctk.CTkButton(dialog, text="تأكيد الدفعة", height=46, fg_color=theme.SUCCESS,
+                      hover_color=theme.lighten_color(theme.SUCCESS, 0.15),
                       font=HEADER_FONT, command=confirm).pack(pady=(4, 16), padx=14, fill="x")
 
     def _send_payment_thanks_whatsapp(self, patient_id, amount):
@@ -1430,7 +1431,8 @@ class PatientsPage(ctk.CTkFrame):
             dialog.destroy()
             open_with_default_app(path)
 
-        ctk.CTkButton(dialog, text="🖨️ توليد وفتح الكشف", height=44, fg_color=theme.SUCCESS,
+        ctk.CTkButton(dialog, text="توليد وفتح الكشف", height=44, fg_color=theme.SUCCESS,
+                      hover_color=theme.lighten_color(theme.SUCCESS, 0.15),
                       command=do_print).pack(padx=30, pady=16, fill="x")
 
     def _open_charge_dialog(self, patient_id):

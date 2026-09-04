@@ -316,7 +316,7 @@ class ToothChart(ctk.CTkFrame):
         # الثيم، وإطار أسود خفيف حوالين الصندوق نفسه
         DOCTOR_BOX_LIGHT = theme.lighten_color(theme.PRIMARY_LIGHT, 0.88)
         doctor_box = ctk.CTkFrame(doctor_row, fg_color=DOCTOR_BOX_LIGHT, corner_radius=8,
-                                   border_width=1, border_color="#000000")
+                                   border_width=1, border_color=theme.BORDER)
         doctor_box.pack(side="right", padx=(0, 5))
 
         self.doctor_menu = ctk.CTkOptionMenu(
@@ -600,7 +600,7 @@ class ToothChart(ctk.CTkFrame):
                 self.btns_row, text=label, width=btn_width, height=36,
                 font=theme.FONT_NORMAL, corner_radius=8,
                 fg_color=UNIFORM_BTN_BG, text_color=theme.TEXT_DARK,
-                border_width=1, border_color="#000000", hover_color=UNIFORM_BTN_HOVER,
+                border_width=1, border_color=theme.BORDER, hover_color=UNIFORM_BTN_HOVER,
                 command=lambda s=status_key: self._on_treatment_click(s)
             ).pack(side="right", padx=4, pady=4)
 
@@ -1711,10 +1711,12 @@ class ToothChart(ctk.CTkFrame):
 
         btn_row = ctk.CTkFrame(dialog, fg_color="transparent")
         btn_row.pack(fill="x", padx=24, pady=(0, 16))
-        ctk.CTkButton(btn_row, text="💾 حفظ", height=40, fg_color=theme.SUCCESS,
+        ctk.CTkButton(btn_row, text="حفظ", height=40, fg_color=theme.SUCCESS,
+                      hover_color=theme.lighten_color(theme.SUCCESS, 0.15),
                       command=save).pack(side="right", fill="x", expand=True, padx=(6, 0))
         if existing:
-            ctk.CTkButton(btn_row, text="🗑 حذف الملحوظة", height=40, fg_color=theme.DANGER,
+            ctk.CTkButton(btn_row, text="حذف الملحوظة", height=40, fg_color=theme.DANGER,
+                          hover_color=theme.lighten_color(theme.DANGER, 0.15),
                           command=delete_note).pack(side="right", fill="x", expand=True, padx=(0, 6))
 
     def _open_tooth_annotation_view(self, tooth_num):
@@ -1763,7 +1765,8 @@ class ToothChart(ctk.CTkFrame):
             self.refresh()
             self.selection_label.configure(text=f"تم حذف الملحوظة من سن {active_num}")
 
-        ctk.CTkButton(btn_row, text="🗑 حذف", height=40, fg_color=theme.DANGER,
+        ctk.CTkButton(btn_row, text="حذف", height=40, fg_color=theme.DANGER,
+                      hover_color=theme.lighten_color(theme.DANGER, 0.15),
                       command=delete_note).pack(side="right", fill="x", expand=True, padx=(0, 6))
 
 

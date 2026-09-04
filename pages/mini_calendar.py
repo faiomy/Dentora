@@ -664,7 +664,8 @@ class HijriMiniCalendar(ctk.CTkFrame):
             dialog.destroy()
             self.jump_to(self.selected_date)
 
-        ctk.CTkButton(dialog, text="✔ حفظ التعديل", height=42, fg_color=theme.SUCCESS,
+        ctk.CTkButton(dialog, text="حفظ التعديل", height=42, fg_color=theme.SUCCESS,
+                      hover_color=theme.lighten_color(theme.SUCCESS, 0.15),
                       font=theme.FONT_NORMAL, command=save).pack(padx=24, pady=18, fill="x")
 
 

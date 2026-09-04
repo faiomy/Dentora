@@ -73,7 +73,7 @@ EDIT_WIDGET_HEIGHT = max(ROW_HEIGHT - 4, 14)
 HEADER_CELL_HEIGHT = HEADER_HEIGHT
 ROW_CELL_HEIGHT = ROW_HEIGHT
 # نفس لون خط شبكة جدول سجل المعالجات - عشان الشكل يفضل متطابق بين الجدولين
-GRID_LINE = "#C7CCD6"
+GRID_LINE = theme.BORDER
 
 
 class PatientVisitsTable(ctk.CTkFrame):

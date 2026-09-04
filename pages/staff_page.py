@@ -79,7 +79,8 @@ class StaffPage(ctk.CTkFrame):
             on_confirmed()
 
         password_entry.bind("<Return>", lambda e: confirm())
-        ctk.CTkButton(dialog, text="✔ تأكيد", height=40, fg_color=theme.SUCCESS,
+        ctk.CTkButton(dialog, text="تأكيد", height=40, fg_color=theme.SUCCESS,
+                      hover_color=theme.lighten_color(theme.SUCCESS, 0.15),
                       command=confirm).pack(padx=30, pady=14, fill="x")
 
     def _build(self):
@@ -759,5 +760,6 @@ class StaffPage(ctk.CTkFrame):
             self.refresh()
             theme.show_toast(self, "تم حفظ التعديلات")
 
-        ctk.CTkButton(scroll, text="✔ حفظ التعديلات", height=44, fg_color=theme.SUCCESS,
+        ctk.CTkButton(scroll, text="حفظ التعديلات", height=44, fg_color=theme.SUCCESS,
+                      hover_color=theme.lighten_color(theme.SUCCESS, 0.15),
                       command=save).pack(padx=30, pady=10, fill="x")

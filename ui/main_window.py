@@ -97,9 +97,10 @@ class MainWindow(QMainWindow):
             self.button_group.addButton(btn)
             btn.setFixedHeight(44)
             btn.setStyleSheet(
-                "QPushButton { text-align: left; padding-left: 16px; border: none; background-color: transparent; font-size: 14px; }"
-                "QPushButton:checked { background-color: #e6f2ff; }"
-                "QPushButton:hover { background-color: #f0f8ff; }"
+                "QPushButton { text-align: left; padding-left: 16px; border: none; background-color: transparent; font-size: 14px; color: #333333; }"
+                "QPushButton:hover { background-color: #e6f2ff; }"
+                "QPushButton:checked { background-color: #003366; color: #ffffff; font-weight: bold; border-left: 4px solid #1E88E5; }"
+                "QPushButton:checked:hover { background-color: #003366; }"
             )
             sidebar_layout.addWidget(btn)
 

@@ -24,7 +24,7 @@ class TreatmentVariantsDialog(ctk.CTkToplevel):
         self._build()
 
     def _build(self):
-        ctk.CTkLabel(self, text="⚙  إدارة الإجراءات الطبية", font=theme.FONT_SUBTITLE,
+        ctk.CTkLabel(self, text="إدارة الإجراءات الطبية", font=theme.FONT_SUBTITLE,
                      text_color=theme.TEXT_DARK).pack(pady=(16, 4))
         ctk.CTkLabel(self,
                      text="من هنا تقدر تعدّل اسم أي إجراء أو تحذفه بالكامل، وكمان تضيف أنواعه الفرعية\n"
@@ -84,7 +84,8 @@ class TreatmentVariantsDialog(ctk.CTkToplevel):
             if self.on_change:
                 self.on_change()
 
-        ctk.CTkButton(header, text="💾 حفظ الاسم", width=90, height=30, fg_color=theme.SUCCESS,
+        ctk.CTkButton(header, text="حفظ الاسم", width=90, height=30, fg_color=theme.SUCCESS,
+                      hover_color=theme.lighten_color(theme.SUCCESS, 0.15),
                       font=theme.FONT_SMALL, command=save_name).pack(side="right", padx=6)
 
         ctk.CTkLabel(header, text=f"(السعر الأساسي: {info['price']:g} جنيه)", font=theme.FONT_SMALL,
@@ -93,7 +94,8 @@ class TreatmentVariantsDialog(ctk.CTkToplevel):
         if is_builtin:
             ctk.CTkLabel(header, text="بند أساسي", font=theme.FONT_SMALL,
                          text_color=theme.TEXT_MUTED).pack(side="left", padx=4)
-        ctk.CTkButton(header, text="🗑 حذف الإجراء بالكامل", width=140, height=30, fg_color=theme.DANGER,
+        ctk.CTkButton(header, text="حذف الإجراء بالكامل", width=140, height=30, fg_color=theme.DANGER,
+                      hover_color=theme.lighten_color(theme.DANGER, 0.15),
                       font=theme.FONT_SMALL,
                       command=lambda: self._delete_treatment(treatment_key, info["label"])).pack(
             side="left", padx=4)

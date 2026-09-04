@@ -172,7 +172,7 @@ class SettingsPage(ctk.CTkFrame):
         self.tax_card_entry = self._styled_entry(row, self.settings.get("tax_card_number") or "")
 
         save_wrapper = theme.make_shadowed_button(
-            card, "💾 حفظ الإعدادات", command=self._save, width=190, height=40, font=HEADER_LABEL_FONT)
+            card, "حفظ الإعدادات", command=self._save, width=190, height=40, font=HEADER_LABEL_FONT)
         save_wrapper.pack(pady=(14, 18))
 
     def _build_appearance_tab(self, scroll):
@@ -722,7 +722,7 @@ class SettingsPage(ctk.CTkFrame):
                              width=24, **theme.checkbox_colors()).pack(expand=True, pady=8)
 
         save_perm_wrapper = theme.make_shadowed_button(
-            perm_card, "💾 حفظ الصلاحيات", command=self._save_permissions,
+            perm_card, "حفظ الصلاحيات", command=self._save_permissions,
             width=170, height=42, font=theme.FONT_SUBTITLE)
         save_perm_wrapper.pack(pady=(12, 20))
 

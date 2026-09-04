@@ -189,16 +189,14 @@ THEME_PRESETS = {
     },
 
     # ---- ثيمات "أنظمة تشغيل/برامج" شهيرة، بروح راقية تناسب برنامج طبي ----
-    "aero_glass": {
-        # مستوحى من زجاجية Windows 7 Aero: تدرج أزرق لامع في الهيدر،
-        # وحد فولاذي غامق واضح، وتابات زجاجية فاتحة
-        "name": "أزرق زجاجي (Aero)",
-        "primary": "#2E6DA4", "secondary": "#1B3F63",
-        "bg_main": "#EDF3FA", "card_bg": "#FFFFFF",
-        "text_dark": "#152738", "text_muted": "#5C7086", "border": "#B9CCE0",
-        "header_grad_start": "#5FA0DE", "header_grad_end": "#0F3A63",
-        "accent_border": "#0F3A63",
-        "tab_active": "#FFFFFF", "tab_inactive": "#CBDCEE",
+    "clean_medical": {
+        "name": "نظيف طبي",
+        "primary": "#00695C", "secondary": "#00897B",
+        "bg_main": "#F5F5F5", "card_bg": "#FFFFFF",
+        "text_dark": "#212121", "text_muted": "#777777", "border": "#E0E0E0",
+        "header_grad_start": "#E0F2F1", "header_grad_end": "#FFFFFF",
+        "accent_border": "#00897B",
+        "tab_active": "#FFFFFF", "tab_inactive": "#F5F5F5",
     },
     "xp_royal": {
         # مستوحى من الأزرق الملكي/الفضي لـ Windows XP: تدرج أزرق-كوبالتي
@@ -358,7 +356,7 @@ THEME_PRESETS = {
         "tab_active": "#1F3833", "tab_inactive": "#142521",
     },
 }
-DEFAULT_THEME_ID = "aero_glass"
+DEFAULT_THEME_ID = "clean_medical"
 
 
 def darken_color(hex_color, factor=0.78):
@@ -445,6 +443,10 @@ def apply_theme_palette(theme_id):
     TAB_ACTIVE_GRAD_BOTTOM = preset["tab_active_grad_bottom"]
     TAB_INACTIVE_GRAD_TOP = preset["tab_inactive_grad_top"]
     TAB_INACTIVE_GRAD_BOTTOM = preset["tab_inactive_grad_bottom"]
+    # تحديث ألوان حالة المواعيد لتتماشى مع لون الثيم المميز الحالي (بدل أزرق
+    # ثابت) - باعتبارنا بندل الـ dict في مكانها، كل المرجعيات القديمة ليه
+    # (زي STATUSES في ui/) بتشوف التحديث فورًا
+    APPOINTMENT_STATUSES["confirmed"]["color"] = ACCENT_BORDER
 
 
 # ألوان محايدة ثابتة (مش بتتغير من الإعدادات)
@@ -480,7 +482,7 @@ TOOTH_STATUSES = {
 }
 
 APPOINTMENT_STATUSES = {
-    "confirmed": {"label": "مؤكد",   "color": "#1E88E5"},
+    "confirmed": {"label": "مؤكد",   "color": ACCENT_BORDER},
     "arrived":   {"label": "حضر",    "color": "#43A047"},
     "late":      {"label": "متأخر",  "color": "#8E24AA"},
     "completed": {"label": "انتهى",  "color": "#6B7280"},
@@ -771,17 +773,19 @@ def rtl_fix(text):
     return " ".join(reversed(text.split(" ")))
 
 
-# ---------------- شكل "غاطس" (Sunken) لصناديق إدخال البيانات - زي نوافذ ويندوز ----------------
-INPUT_SUNKEN_BG = "#E9EBEF"       # خلفية أغمق شوية من الكارت الأبيض، تدي إحساس إن الصندوق محفور
-INPUT_SUNKEN_BORDER = "#9AA0A8"   # حد رمادي غامق يوضّح حافة "الحفرة"
-INPUT_LABEL_COLOR = "#2B2F36"     # لون عنوان الحقل (غامق وواضح زي عناوين نوافذ ويندوز)
+# ---------------- حقول إدخال مسطّحة عصرية (بدل الشكل "الغاطس" القديم) ----------------
+# شكل الحقول الحديث: سطح أبيض/فاتح ناعم بحواف مستديرة وحد رفيع محايد رقيق،
+# من غير إحساس "الحفرة" الغاطسة ولا الحد الغامق
+INPUT_SUNKEN_BG = "#FFFFFF"       # خلفية الحقل (أبيض نظيف على الكارت الأبيض)
+INPUT_SUNKEN_BORDER = "#D6D9DE"   # حد رفيع محايد فاتح يوضّح حافة الحقل برفق
+INPUT_LABEL_COLOR = "#2B2F36"     # لون عنوان الحقل
 
 
 def apply_sunken_style(widget):
-    """يطبّق شكل الصندوق الغاطس على أي CTkEntry/RTLEntry/CTkTextbox/CTkComboBox"""
+    """يطبّق شكل الحقل المسطّح العصري على أي CTkEntry/RTLEntry/CTkTextbox/CTkComboBox"""
     try:
-        widget.configure(fg_color=INPUT_SUNKEN_BG, border_width=2,
-                          border_color=INPUT_SUNKEN_BORDER, corner_radius=4)
+        widget.configure(fg_color=INPUT_SUNKEN_BG, border_width=1,
+                          border_color=INPUT_SUNKEN_BORDER, corner_radius=RADIUS_SM)
     except Exception:
         pass
     return widget
@@ -896,60 +900,23 @@ def rounded_top_gradient_pil(width, height, top_color, bottom_color, radius=10):
 
 
 def make_shadowed_button(parent, text, command, width=150, height=38,
-                          fg_color=None, text_color="#FFFFFF", font=None, corner_radius=8,
+                          fg_color=None, text_color=None, font=None, corner_radius=None,
                           canvas_bg=None):
-    """زرار "كروم" حقيقي: تدرج رأسي ناعم (فاتح فوق - غامق تحت) وحد واضح
-    وظل خفيف تحته، بيلمع شوية أكتر لما الماوس يبقى فوقه - إحساس إنه بارز
-    وقابل للضغط زي أزرار الأنظمة الكلاسيكية، مش لون مسطّح بس.
+    """زرار أساسي مسطّح عصري بلون الثيم الأساسي (teal) ونص أبيض - من غير
+    تدرج ولا ظل ولا حواف بارزة (بديل "الكروم" القديم).
 
-    ملحوظة تقنية: بنرسم الصورة والنص مع بعض على نفس الـ Canvas (مش
-    CTkLabel شفاف فوق التانية) - لأن CTkLabel(fg_color="transparent")
-    بيفشل في تحديد اللون الحقيقي اللي وراه لما يكون جوه CTkScrollableFrame
-    (تحديدًا)، وبيظهر مربع أبيض صلب فوق النص بدل ما يبان شفاف"""
+    بياخد نفس التوقيع ويرجّع نفس نوع الودجت اللي بيدعم .pack()/.grid()،
+    عشان كل صفحات البرنامج اللي كانت بتستخدمه تتحمّل automatically من غير
+    ما نعدّل استدعاءاتها."""
     import customtkinter as ctk
-    import tkinter as tk
-    fg_color = fg_color or SUCCESS
-    canvas_bg = canvas_bg or CARD_BG
-    wrapper = ctk.CTkFrame(parent, fg_color="transparent", width=width + 4, height=height + 4)
-    wrapper.pack_propagate(False)
-
-    shadow = ctk.CTkFrame(wrapper, fg_color="#9AA0A8", corner_radius=corner_radius,
-                           width=width, height=height)
-    shadow.place(x=4, y=4)
-
-    border_color = darken_color(fg_color, 0.65)
-    normal_pil = _rounded_gradient_pil(width, height, lighten_color(fg_color, 0.32),
-                                        darken_color(fg_color, 0.85), corner_radius, border_color)
-    hover_pil = _rounded_gradient_pil(width, height, lighten_color(fg_color, 0.48),
-                                       darken_color(fg_color, 0.78), corner_radius, border_color)
-    from PIL import ImageTk
-    normal_img = ImageTk.PhotoImage(normal_pil)
-    hover_img = ImageTk.PhotoImage(hover_pil)
-
-    canvas = tk.Canvas(wrapper, width=width, height=height, highlightthickness=0,
-                       bd=0, bg=canvas_bg, cursor="hand2")
-    canvas.place(x=0, y=0)
-    canvas._img_refs = (normal_img, hover_img)  # مرجع دائم يمنع الصور من الاختفاء
-    canvas.create_image(0, 0, anchor="nw", image=normal_img, tags="bgimg")
-    canvas.create_text(width / 2, height / 2 + 1, text=text, fill=text_color,
-                        font=font or FONT_NORMAL, tags="label")
-
-    def _on_enter(_e=None):
-        canvas.itemconfigure("bgimg", image=hover_img)
-
-    def _on_leave(_e=None):
-        canvas.itemconfigure("bgimg", image=normal_img)
-
-    def _on_click(_e=None):
-        if command:
-            command()
-
-    canvas.bind("<Enter>", _on_enter)
-    canvas.bind("<Leave>", _on_leave)
-    canvas.bind("<Button-1>", _on_click)
-
-    wrapper.chrome_canvas = canvas
-    return wrapper
+    fg_color = fg_color or PRIMARY_LIGHT
+    text_color = text_color or "#FFFFFF"
+    font = font or FONT_NORMAL
+    radius = corner_radius if corner_radius is not None else RADIUS_MD
+    return ctk.CTkButton(parent, text=text, command=command, width=width, height=height,
+                         fg_color=fg_color, hover_color=lighten_color(fg_color, 0.15),
+                         text_color=text_color, font=font, corner_radius=radius,
+                         border_width=0, cursor="hand2")
 
 
 class GlassIconButton:
@@ -1017,8 +984,9 @@ class GlassIconButton:
         self._tk_inactive_hover = ImageTk.PhotoImage(self._img_inactive_hover)
 
     def _glass_pil(self, active, hover):
-        """صورة زرار بتدرج بلون الثيم + خط لمعان علوي شفاف (إحساس زجاجي
-        لامع حقيقي، مش مجرد لون مسطّح) - وحدود رفيعة توضّح حافة الزرار"""
+        """صورة زرار مسطّح عصري بلون الثيم الأساسي (نشط) أو سطح محايد فاتح
+        (غير نشط) بحواف مستديرة ناعمة وحد رفيع - من غير تدرج ولا خط لمعان
+        (بديل الشكل الزجاجي اللامع القديم)"""
         from PIL import Image, ImageDraw
         w, h = self.width, self.height
         scale = 3
@@ -1026,39 +994,19 @@ class GlassIconButton:
         R = max(self.corner_radius * scale, 1)
 
         if active:
-            top = lighten_color(self.accent_color, 0.46 if hover else 0.34)
-            bottom = darken_color(self.accent_color, 0.92 if hover else 0.82)
-            border = darken_color(self.accent_color, 0.55)
+            fill = lighten_color(self.accent_color, 0.16 if hover else 0.0)
+            border = darken_color(self.accent_color, 0.7) if hover else darken_color(self.accent_color, 0.55)
         else:
-            top = lighten_color(self.accent_color, 0.88 if hover else 0.92)
-            bottom = lighten_color(self.accent_color, 0.72 if hover else 0.80)
-            border = lighten_color(self.accent_color, 0.45)
+            fill = lighten_color(self.accent_color, 0.90 if hover else 0.94)
+            border = lighten_color(self.accent_color, 0.55) if hover else lighten_color(self.accent_color, 0.45)
 
-        top_rgb = tuple(int(top.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
-        bot_rgb = tuple(int(bottom.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
-        grad_col = Image.new("RGB", (1, H))
-        for y in range(H):
-            t = y / max(H - 1, 1)
-            px = tuple(int(top_rgb[i] + (bot_rgb[i] - top_rgb[i]) * t) for i in range(3))
-            grad_col.putpixel((0, y), px)
-        grad = grad_col.resize((W, H))
-
-        mask = Image.new("L", (W, H), 0)
-        ImageDraw.Draw(mask).rounded_rectangle([0, 0, W - 1, H - 1], radius=R, fill=255)
         img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        img.paste(grad, (0, 0), mask)
+        ImageDraw.Draw(img).rounded_rectangle(
+            [0, 0, W - 1, H - 1], radius=R, fill=fill)
 
         bw = max(1 * scale, 1)
         ImageDraw.Draw(img).rounded_rectangle(
             [bw / 2, bw / 2, W - bw / 2 - 1, H - bw / 2 - 1], radius=R, outline=border, width=bw)
-
-        # خط لمعان زجاجي أعلى الزرار (نص علوي فاتح شبه شفاف) يدّي إحساس السطح اللامع
-        shine = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        shine_alpha = 60 if active else 130
-        ImageDraw.Draw(shine).rounded_rectangle(
-            [bw * 2, bw * 2, W - bw * 2, H * 0.46], radius=max(R - bw, 1),
-            fill=(255, 255, 255, shine_alpha))
-        img = Image.alpha_composite(img, shine)
 
         if self.icon_image is not None:
             # نلزّق الأيقونة الملوّنة في نص المربع فوق الخلفية الزجاجية،
@@ -1145,36 +1093,25 @@ CARD_SHADOW_COLOR = "#D2D5DA"
 
 def make_shadowed_card(parent, width=None, height=None, fg_color=None, corner_radius=None,
                         shadow_offset=4, **kwargs):
-    """بيرجع (wrapper, card): كارت رئيسي بظل خفيف خلفه بإزاحة بسيطة، بيدي
-    إحساس عمق (depth) بسيط للكروت الرئيسية بدل ما تبقى مسطّحة تمامًا.
-    استخدمه بدل ما تعمل ctk.CTkFrame مباشرة للكروت الكبيرة (صفحة كاملة،
-    قسم رئيسي...)؛ حط محتواك جوه "card" اللي بيرجعه، ومقاس "wrapper" هو
-    اللي تحطه بنفسك في التخطيط (pack/grid)."""
+    """بيرجع (wrapper, card): كارت مسطّح عصري بسطح أبيض وحد رفيع ناعم،
+    من غير ظل ثقيل (بديل ظل "الكروم" القديم). استخدمه بدل ما تعمل
+    ctk.CTkFrame مباشرة للكروت الكبيرة (صفحة كاملة، قسم رئيسي...)"""
     import customtkinter as ctk
     fg_color = fg_color or CARD_BG
     corner_radius = corner_radius if corner_radius is not None else RADIUS_LG
 
     wrapper = ctk.CTkFrame(parent, fg_color="transparent")
-    if width is not None and height is not None:
-        wrapper.configure(width=width + shadow_offset, height=height + shadow_offset)
-        wrapper.pack_propagate(False)
-
-    shadow = ctk.CTkFrame(wrapper, fg_color=CARD_SHADOW_COLOR, corner_radius=corner_radius,
-                           width=width, height=height)
-    shadow.place(x=shadow_offset, y=shadow_offset, relwidth=1 if width is None else None,
-                 relheight=1 if height is None else None)
-
     card = ctk.CTkFrame(wrapper, fg_color=fg_color, corner_radius=corner_radius, **kwargs)
     card_kwargs_has_border = "border_width" in kwargs or "border_color" in kwargs
     if not card_kwargs_has_border:
-        # حد رفيع بلون الثيم المميز (accent) - عشان الكارت يبان له هوية
-        # واضحة تتغيّر مع كل ثيم، مش بس ظل خفيف
+        # حد رفيع محايد ناعم يعزل الكارت عن الخلفية بلطف - مش حاجة ثقيلة
         card.configure(border_width=1, border_color=BORDER)
     if width is not None and height is not None:
+        wrapper.pack_propagate(False)
+        wrapper.configure(width=width, height=height)
         card.place(x=0, y=0, width=width, height=height)
     else:
-        card.place(x=0, y=0, relwidth=1, relheight=1,
-                   width=-shadow_offset, height=-shadow_offset)
+        card.place(x=0, y=0, relwidth=1, relheight=1)
 
     return wrapper, card
 
@@ -1185,7 +1122,7 @@ def show_toast(parent, text, kind="success", duration=1800):
     ناجحة. kind: "success" أو "error" أو "info" """
     import customtkinter as ctk
 
-    colors = {"success": SUCCESS, "error": DANGER, "info": "#1E88E5"}
+    colors = {"success": SUCCESS, "error": DANGER, "info": ACCENT_BORDER}
     bg = colors.get(kind, SUCCESS)
 
     toast = ctk.CTkFrame(parent, fg_color=bg, corner_radius=RADIUS_MD)
@@ -1266,11 +1203,12 @@ def confirm_dialog(parent, message, on_confirm, title="تأكيد",
     # ما كان قبل كده
     BTN_W, BTN_H = 84, 32
     ctk.CTkButton(btn_row, text=confirm_text, width=BTN_W, height=BTN_H,
-                  fg_color=DANGER if danger else SUCCESS,
+                  fg_color=DANGER if danger else PRIMARY_LIGHT,
+                  hover_color=lighten_color(DANGER if danger else PRIMARY_LIGHT, 0.15),
                   text_color="#FFFFFF",
                   font=FONT_DIALOG_LABEL, command=_yes).pack(side="right", padx=6)
     ctk.CTkButton(btn_row, text=cancel_text, width=BTN_W, height=BTN_H,
-                  fg_color=PRIMARY_LIGHT, hover_color="#1565C0",
-                  text_color="#FFFFFF", border_width=0,
+                  fg_color=CARD_BG, hover_color=lighten_color(PRIMARY_LIGHT, 0.85),
+                  text_color=TEXT_DARK, border_width=1, border_color=BORDER,
                   font=FONT_DIALOG_LABEL, command=win.destroy).pack(side="right", padx=6)
     return win
