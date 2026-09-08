@@ -845,6 +845,33 @@ def init_db():
     cur.execute("UPDATE clinic_settings SET remembered_password = NULL "
                 "WHERE remembered_password IS NOT NULL")
 
+    # ---------------- الفهارس (Indexes) ----------------
+    # الأعمدة اللي بتتفلتر عليها الاستعلامات الساخنة (معرّف المريض/المعمل
+    # والتواريخ) - من غيرها SQLite بيعمل full table scan مع كل استعلام،
+    # وده بيبان مع قاعدة بيانات بتكبر مع السنين. كلها CREATE INDEX IF NOT
+    # EXISTS فمفيش أي تأثير على البيانات ولا على الكود القائم.
+    _PERFORMANCE_INDEXES = [
+        # كل حاجة بتتسأل "جيب حاجات المريض ده"
+        "CREATE INDEX IF NOT EXISTS idx_appointments_patient_id ON appointments(patient_id)",
+        "CREATE INDEX IF NOT EXISTS idx_treatment_records_patient_id ON treatment_records(patient_id)",
+        "CREATE INDEX IF NOT EXISTS idx_transactions_patient_id ON transactions(patient_id)",
+        "CREATE INDEX IF NOT EXISTS idx_visits_patient_id ON visits(patient_id)",
+        "CREATE INDEX IF NOT EXISTS idx_patient_files_patient_id ON patient_files(patient_id)",
+        "CREATE INDEX IF NOT EXISTS idx_tooth_chart_patient_id ON tooth_chart(patient_id)",
+        "CREATE INDEX IF NOT EXISTS idx_tooth_annotations_patient_id ON tooth_annotations(patient_id)",
+        "CREATE INDEX IF NOT EXISTS idx_patient_phones_patient_id ON patient_phones(patient_id)",
+        # تقويم المواعيد بيفلتر بالتاريخ، وحركات المعامل بحساب المعمل
+        "CREATE INDEX IF NOT EXISTS idx_appointments_appt_date ON appointments(appt_date)",
+        "CREATE INDEX IF NOT EXISTS idx_lab_transactions_lab_id ON lab_transactions(lab_id)",
+        "CREATE INDEX IF NOT EXISTS idx_lab_orders_lab_id ON lab_orders(lab_id)",
+        # تقارير الفترات (حسابات العيادة/PDF)
+        "CREATE INDEX IF NOT EXISTS idx_expenses_expense_date ON expenses(expense_date)",
+        "CREATE INDEX IF NOT EXISTS idx_transactions_tx_date ON transactions(tx_date)",
+        "CREATE INDEX IF NOT EXISTS idx_treatment_records_treatment_date ON treatment_records(treatment_date)",
+    ]
+    for _idx_sql in _PERFORMANCE_INDEXES:
+        cur.execute(_idx_sql)
+
     # ---------------- سجل رسائل n8n ----------------
     # كل رسالة بتتبعت عبر webhook بتاع n8n بتتسجل هنا بحالتها
     # (pending/sent/failed) وعدد المحاولات وآخر خطأ - والرسائل اللي
