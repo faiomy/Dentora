@@ -20,6 +20,7 @@ from PIL import Image
 import theme
 from pages.notebook_tabs import NotebookTabview
 import database as db
+from pages import components as ui
 from pages.rtl_entry import RTLEntry
 
 WEEKDAYS = ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"]
@@ -84,14 +85,12 @@ class StaffPage(ctk.CTkFrame):
                       command=confirm).pack(padx=30, pady=14, fill="x")
 
     def _build(self):
-        header = ctk.CTkFrame(self, fg_color="transparent")
+        header = ui.PageHeader(self, "طاقم العمل")
         header.pack(fill="x", pady=(0, 14))
-        ctk.CTkLabel(header, text="طاقم العمل", font=theme.FONT_TITLE,
-                     text_color=theme.TEXT_DARK).pack(side="right")
 
         # زرار "إضافة" واحد بس - شكل شيك (أيقونة + نص)، هوفر بيوضح الغرض،
         # ودوسة بتفتح قايمة اختيار نوع العضو (لو المستخدم مش مدير هيتقفل تلقائيًا)
-        add_btn = ctk.CTkButton(header, text="＋  إضافة", width=130, height=40,
+        add_btn = ctk.CTkButton(header.actions_row, text="＋  إضافة", width=130, height=40,
                                  corner_radius=theme.RADIUS_MD, font=theme.FONT_NAV,
                                  fg_color=theme.SUCCESS, hover_color=theme.darken_color(theme.SUCCESS, 0.85),
                                  command=self._open_add_menu)
@@ -198,13 +197,12 @@ class StaffPage(ctk.CTkFrame):
             w.destroy()
 
         if not rows:
-            ctk.CTkLabel(scroll, text="لا يوجد أحد مسجل هنا بعد", font=theme.FONT_SMALL,
-                         text_color=theme.TEXT_MUTED).pack(pady=30)
+            ui.empty_state(scroll, "لا يوجد أحد مسجل هنا بعد", pady=30)
             return
 
         for r in rows:
-            card = ctk.CTkFrame(scroll, fg_color=theme.CARD_BG, corner_radius=theme.RADIUS_MD,
-                                 border_width=1, border_color=theme.BORDER)
+            card = ui.card(scroll, corner_radius=theme.RADIUS_MD,
+                           border_width=1, border_color=theme.BORDER)
             card.pack(fill="x", pady=5, padx=4)
 
             top_row = ctk.CTkFrame(card, fg_color="transparent")
@@ -212,16 +210,13 @@ class StaffPage(ctk.CTkFrame):
 
             if self._is_manager():
                 remove_cmd = self._deactivate_user if kind == "user" else self._deactivate_support
-                ctk.CTkButton(top_row, text="حذف", width=64, height=26, fg_color=theme.DANGER,
-                              font=theme.FONT_SMALL,
-                              command=lambda rid=r["id"], k=kind: self._require_manager_password(
-                                  lambda: remove_cmd(rid))).pack(side="left", padx=(0, 6))
+                ui.toolbar_button(top_row, "حذف", width=64, height=26, kind="danger",
+                                  command=lambda rid=r["id"], k=kind: self._require_manager_password(
+                                      lambda: remove_cmd(rid))).pack(side="left", padx=(0, 6))
 
-                ctk.CTkButton(top_row, text="تعديل بيانات", width=90, height=26,
-                              fg_color=theme.BG_MAIN, text_color=theme.TEXT_DARK,
-                              border_width=1, border_color=theme.BORDER, font=theme.FONT_SMALL,
-                              command=lambda row=r, k=kind: self._require_manager_password(
-                                  lambda: self._open_edit_dialog(row, k))).pack(side="left")
+                ui.toolbar_button(top_row, "تعديل بيانات", width=90, height=26, kind="subtle",
+                                  command=lambda row=r, k=kind: self._require_manager_password(
+                                      lambda: self._open_edit_dialog(row, k))).pack(side="left")
 
             extra = r.get("username") if kind == "user" else None
             name_text = r["full_name"] + (f"  ({extra})" if extra else "")
@@ -252,7 +247,7 @@ class StaffPage(ctk.CTkFrame):
 
             # بيانات المرتب - ظاهرة للمدير بس
             if self._is_manager() and (r.get("salary") or r.get("income_percent")):
-                salary_row = ctk.CTkFrame(card, fg_color=theme.BG_MAIN, corner_radius=theme.RADIUS_SM)
+                salary_row = ui.inner_row(card, corner_radius=theme.RADIUS_SM)
                 salary_row.pack(fill="x", padx=14, pady=(0, 10))
                 salary_parts = []
                 if r.get("salary"):
