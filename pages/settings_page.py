@@ -13,6 +13,7 @@ import customtkinter as ctk
 from tkinter import filedialog
 import theme
 import database as db
+from pages import components as ui
 from pages.rtl_entry import RTLEntry
 from pages.notebook_tabs import NotebookTabview
 from pages import icons
@@ -87,8 +88,7 @@ class SettingsPage(ctk.CTkFrame):
     # ---------------- بناء الصفحة ----------------
 
     def _build(self):
-        ctk.CTkLabel(self, text="إعدادات العيادة", font=theme.FONT_TITLE,
-                     text_color=theme.TEXT_DARK).pack(anchor="e", pady=(0, 8))
+        ui.PageHeader(self, "إعدادات العيادة").pack(anchor="e", pady=(0, 8))
 
         self._new_logo_path = None
         is_manager = bool(self.current_user and self.current_user["role"] == "manager")
