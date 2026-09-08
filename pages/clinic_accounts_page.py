@@ -2,12 +2,19 @@
 """
 صفحة حسابات العيادة الإجمالية: الإيرادات (المدفوع من المرضى) مقابل المصروفات،
 وصافي الربح أو الخسارة، خلال أي فترة (يوم/شهر/سنة/فترة مخصصة)
+
+مبنية على مكونات pages/components.py الموحّدة (هيدر/كروت/بطاقات أرقام/أزرار
+شريط) عشان شكلها يفضل متناسق مع باقي الصفحات.
 """
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
+
 import customtkinter as ctk
+
 import theme
 import database as db
+from pages import components as ui
+from pages.components import PageHeader, StatCard
 
 
 class ClinicAccountsPage(ctk.CTkFrame):
@@ -19,34 +26,34 @@ class ClinicAccountsPage(ctk.CTkFrame):
         self._build()
 
     def _build(self):
-        header = ctk.CTkFrame(self, fg_color="transparent")
+        header = PageHeader(self, "حسابات العيادة")
         header.pack(fill="x", pady=(0, 14))
-        ctk.CTkLabel(header, text="حسابات العيادة", font=theme.FONT_TITLE,
-                     text_color=theme.TEXT_DARK).pack(side="right")
 
-        # أزرار فترات سريعة
+        # أزرار فترات سريعة (نفس الترتيب والمكان: يمين الشاشة)
         quick_row = ctk.CTkFrame(self, fg_color="transparent")
         quick_row.pack(fill="x", pady=(0, 10))
-        ctk.CTkButton(quick_row, text="اليوم", width=90, height=34, fg_color=theme.PRIMARY_LIGHT,
-                      command=self._set_today).pack(side="right", padx=4)
-        ctk.CTkButton(quick_row, text=theme.rtl_fix("هذا الشهر"), width=90, height=34, fg_color=theme.PRIMARY_LIGHT,
-                      command=self._set_this_month).pack(side="right", padx=4)
-        ctk.CTkButton(quick_row, text=theme.rtl_fix("هذه السنة"), width=90, height=34, fg_color=theme.PRIMARY_LIGHT,
-                      command=self._set_this_year).pack(side="right", padx=4)
+        ui.toolbar_button(quick_row, "اليوم", self._set_today, kind="primary",
+                          width=90, height=34).pack(side="right", padx=4)
+        ui.toolbar_button(quick_row, "هذا الشهر", self._set_this_month, kind="primary",
+                          width=90, height=34).pack(side="right", padx=4)
+        ui.toolbar_button(quick_row, "هذه السنة", self._set_this_year, kind="primary",
+                          width=90, height=34).pack(side="right", padx=4)
 
         # فترة مخصصة
         custom_row = ctk.CTkFrame(self, fg_color="transparent")
         custom_row.pack(fill="x", pady=(0, 14))
         ctk.CTkLabel(custom_row, text="من:", font=theme.FONT_NORMAL).pack(side="right", padx=(0, 4))
-        self.start_entry = ctk.CTkEntry(custom_row, width=120, justify="center", font=theme.FONT_NORMAL)
+        self.start_entry = ui.add_themed_entry(custom_row, width=120, height=34,
+                                               justify="center", font=theme.FONT_NORMAL)
         self.start_entry.insert(0, self.start_date.isoformat())
         self.start_entry.pack(side="right", padx=4)
         ctk.CTkLabel(custom_row, text="إلى:", font=theme.FONT_NORMAL).pack(side="right", padx=(8, 4))
-        self.end_entry = ctk.CTkEntry(custom_row, width=120, justify="center", font=theme.FONT_NORMAL)
+        self.end_entry = ui.add_themed_entry(custom_row, width=120, height=34,
+                                             justify="center", font=theme.FONT_NORMAL)
         self.end_entry.insert(0, self.end_date.isoformat())
         self.end_entry.pack(side="right", padx=4)
-        ctk.CTkButton(custom_row, text=theme.rtl_fix("تطبيق الفترة"), width=110, height=34, fg_color=theme.ACCENT_BORDER,
-                      command=self._apply_custom_range).pack(side="right", padx=8)
+        ui.toolbar_button(custom_row, "تطبيق الفترة", self._apply_custom_range,
+                          kind="accent", width=110, height=34).pack(side="right", padx=8)
 
         self.content_area = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.content_area.pack(fill="both", expand=True)
@@ -98,7 +105,7 @@ class ClinicAccountsPage(ctk.CTkFrame):
         profit_color = theme.SUCCESS if profit >= 0 else theme.DANGER
         profit_label = "صافي الربح" if profit >= 0 else "صافي الخسارة"
 
-        summary_card = ctk.CTkFrame(self.content_area, fg_color=theme.CARD_BG, corner_radius=12)
+        summary_card = ui.card(self.content_area)
         summary_card.pack(fill="x", pady=6)
         summary_row = ctk.CTkFrame(summary_card, fg_color="transparent")
         summary_row.pack(fill="x", padx=20, pady=20)
@@ -108,26 +115,19 @@ class ClinicAccountsPage(ctk.CTkFrame):
             ("المصروفات", financials["expenses"], theme.DANGER),
             (profit_label, abs(profit), profit_color),
         ]:
-            box = ctk.CTkFrame(summary_row, fg_color=theme.BG_MAIN, corner_radius=10)
-            box.pack(side="right", fill="both", expand=True, padx=6)
-            ctk.CTkLabel(box, text=label, font=theme.FONT_NORMAL,
-                         text_color=theme.TEXT_MUTED).pack(pady=(16, 4))
-            ctk.CTkLabel(box, text=f"{value:g} جنيه", font=theme.FONT_TITLE,
-                         text_color=color).pack(pady=(0, 16))
+            StatCard(summary_row, label=label, value_text=f"{value:g} جنيه",
+                     value_color=color).pack(side="right", fill="both", expand=True, padx=6)
 
         # تفصيل المصروفات حسب التصنيف
         by_category = db.get_expenses_by_category(start, end)
-        cat_card = ctk.CTkFrame(self.content_area, fg_color=theme.CARD_BG, corner_radius=12)
+        cat_card = ui.card(self.content_area, title="المصروفات حسب التصنيف")
         cat_card.pack(fill="x", pady=6)
-        ctk.CTkLabel(cat_card, text="المصروفات حسب التصنيف", font=theme.FONT_SUBTITLE,
-                     text_color=theme.TEXT_DARK).pack(anchor="e", padx=20, pady=(16, 8))
 
         if not by_category:
-            ctk.CTkLabel(cat_card, text="لا توجد مصروفات في هذه الفترة", font=theme.FONT_SMALL,
-                         text_color=theme.TEXT_MUTED).pack(anchor="e", padx=20, pady=(0, 16))
+            ui.empty_state(cat_card, "لا توجد مصروفات في هذه الفترة", pady=10)
         else:
             for c in by_category:
-                row = ctk.CTkFrame(cat_card, fg_color=theme.BG_MAIN, corner_radius=8)
+                row = ui.inner_row(cat_card)
                 row.pack(fill="x", padx=20, pady=4)
                 ctk.CTkLabel(row, text=f"{c['total']:g} جنيه", font=theme.FONT_NORMAL,
                              text_color=theme.DANGER, anchor="w").pack(side="left", padx=10, pady=8)
@@ -137,17 +137,14 @@ class ClinicAccountsPage(ctk.CTkFrame):
 
         # عمولات الأطباء في نفس الفترة (مفيد لمعرفة صافي الربح الحقيقي بعد العمولات)
         commissions = db.get_doctor_commissions_summary(start, end)
-        comm_card = ctk.CTkFrame(self.content_area, fg_color=theme.CARD_BG, corner_radius=12)
+        comm_card = ui.card(self.content_area, title="عمولات الأطباء في نفس الفترة")
         comm_card.pack(fill="x", pady=6)
-        ctk.CTkLabel(comm_card, text="عمولات الأطباء في نفس الفترة", font=theme.FONT_SUBTITLE,
-                     text_color=theme.TEXT_DARK).pack(anchor="e", padx=20, pady=(16, 8))
 
         if not commissions:
-            ctk.CTkLabel(comm_card, text="لا توجد عمولات مسجلة في هذه الفترة", font=theme.FONT_SMALL,
-                         text_color=theme.TEXT_MUTED).pack(anchor="e", padx=20, pady=(0, 16))
+            ui.empty_state(comm_card, "لا توجد عمولات مسجلة في هذه الفترة", pady=10)
         else:
             for c in commissions:
-                row = ctk.CTkFrame(comm_card, fg_color=theme.BG_MAIN, corner_radius=8)
+                row = ui.inner_row(comm_card)
                 row.pack(fill="x", padx=20, pady=4)
                 ctk.CTkLabel(row, text=f"{c['total_commission']:g} جنيه", font=theme.FONT_NORMAL,
                              text_color=theme.WARNING, anchor="w").pack(side="left", padx=10, pady=8)

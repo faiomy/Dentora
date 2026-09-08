@@ -22,6 +22,13 @@ import customtkinter as ctk
 
 import theme
 
+# مقاسات الاستدارة المعتمدة في الصفحات الموجودة (الكروت 12 والصفوف الداخلية 8
+# هي القاعدة المستخدمة فعليًا في صفحات الحسابات والمصروفات وغيرها) - حطيناها
+# هنا كثوابت عشان تبقى مرجع موحّد بدل أرقام متفرقة في كل صفحة
+CARD_RADIUS = 12
+INNER_ROW_RADIUS = 8
+STAT_RADIUS = 10
+
 
 # ---------------- الهيدر الموحّد لكل صفحة ----------------
 
@@ -92,7 +99,7 @@ class SectionCard(ctk.CTkFrame):
 
     def __init__(self, master, title=None, padded=True, **kwargs):
         kwargs.setdefault("fg_color", theme.CARD_BG)
-        kwargs.setdefault("corner_radius", theme.RADIUS_LG)
+        kwargs.setdefault("corner_radius", CARD_RADIUS)
         super().__init__(master, **kwargs)
 
         self.body = self
@@ -111,16 +118,16 @@ def card(parent, **kwargs):
     """نسخة مختصرة من SectionCard من غير عنوان - للكروت البسيطة
     (بتستبدل CTkFrame(fg_color=theme.CARD_BG, corner_radius=12) المتكرر)."""
     kwargs.setdefault("fg_color", theme.CARD_BG)
-    kwargs.setdefault("corner_radius", theme.RADIUS_LG)
+    kwargs.setdefault("corner_radius", CARD_RADIUS)
     return ctk.CTkFrame(parent, **kwargs)
 
 
 def inner_row(parent, **kwargs):
     """صف/صندوق داخلي داخل كارت - نفس الشكل اللي كان بيتعمل بـ
-    CTkFrame(fg_color=theme.BG_MAIN, corner_radius=8/10) في صفحات
+    CTkFrame(fg_color=theme.BG_MAIN, corner_radius=8) في صفحات
     الحسابات والمصروفات (صف أفتح من الكارت الأبيض حوالينه)."""
     kwargs.setdefault("fg_color", theme.BG_MAIN)
-    kwargs.setdefault("corner_radius", theme.RADIUS_SM)
+    kwargs.setdefault("corner_radius", INNER_ROW_RADIUS)
     return ctk.CTkFrame(parent, **kwargs)
 
 
@@ -133,7 +140,7 @@ class StatCard(ctk.CTkFrame):
 
     def __init__(self, master, label, value_text, value_color=None, **kwargs):
         kwargs.setdefault("fg_color", theme.BG_MAIN)
-        kwargs.setdefault("corner_radius", theme.RADIUS_MD)
+        kwargs.setdefault("corner_radius", STAT_RADIUS)
         super().__init__(master, **kwargs)
         ctk.CTkLabel(self, text=label, font=theme.FONT_NORMAL,
                      text_color=theme.TEXT_MUTED).pack(pady=(16, 4))
