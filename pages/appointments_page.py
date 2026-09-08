@@ -20,6 +20,7 @@ from datetime import date, datetime, timedelta
 
 import theme
 import database as db
+from pages import components as ui
 try:
     import whatsapp_sender as wa_sender
 except Exception:
@@ -110,12 +111,10 @@ class AppointmentsPage(ctk.CTkFrame):
     # ---------------- بناء الواجهة ----------------
 
     def _build(self):
-        header = ctk.CTkFrame(self, fg_color="transparent")
+        header = ui.PageHeader(self, "المواعيد")
         header.pack(fill="x", pady=(0, 12))
-        ctk.CTkLabel(header, text="المواعيد", font=theme.FONT_TITLE,
-                     text_color=theme.TEXT_DARK).pack(side="right", anchor="n")
         ctk.CTkButton(
-            header, text="+ موعد جديد", command=lambda: self.open_appointment_dialog(),
+            header.actions_row, text="+ موعد جديد", command=lambda: self.open_appointment_dialog(),
             width=150, height=36, corner_radius=8,
             fg_color=theme.PRIMARY_LIGHT, hover_color=theme.ACCENT_BORDER,
             font=theme.FONT_NORMAL, text_color="#FFFFFF").pack(side="left")
@@ -1086,8 +1085,7 @@ class AppointmentsPage(ctk.CTkFrame):
                 w.destroy()
             matches = db.get_all_patients(search=search_text.strip()) if search_text.strip() else patients
             if not matches:
-                ctk.CTkLabel(results_frame, text="لا توجد نتائج مطابقة", font=theme.FONT_SMALL,
-                             text_color=theme.TEXT_MUTED).pack(pady=10)
+                ui.empty_state(results_frame, "لا توجد نتائج مطابقة", pady=10)
                 return
             for p in matches[:40]:
                 age = db.calculate_age(p.get("birth_date"))
