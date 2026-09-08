@@ -14,6 +14,7 @@ from PIL import Image
 
 import theme
 import database as db
+from pages import components as ui
 from pages.tooth_chart_widget import ToothChart
 from pages.rtl_entry import RTLEntry
 from pages.date_auto_entry import DateAutoEntry
@@ -33,33 +34,10 @@ PROFILE_PHOTOS_DIR = os.path.join(ASSETS_DIR, "profile_photos")
 
 
 class _Tooltip:
-    """تلميح صغير بيظهر عند عمل hover على أي widget"""
-    def __init__(self, widget, text, font_size=10):
-        self.widget = widget
-        self.text = text
-        self.font_size = font_size
-        self.tip = None
-        # add="+" عشان الحدث ده ميلغيش أي ربط تاني موجود على نفس الودجت
-        # (زي تأثير الـ hover بتاع أزرار الأيقونات الزجاجية)
-        widget.bind("<Enter>", self._show, add="+")
-        widget.bind("<Leave>", self._hide, add="+")
+    """اسم محفوظ للتوافق - التنفيذ الفعلي اتقال لكلاس ui.Tooltip المشترك"""
 
-    def _show(self, event=None):
-        if self.tip or not self.text:
-            return
-        x = self.widget.winfo_rootx() + self.widget.winfo_width() // 2 - 30
-        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 6
-        self.tip = tk.Toplevel(self.widget)
-        self.tip.wm_overrideredirect(True)
-        self.tip.wm_geometry(f"+{x}+{y}")
-        tk.Label(self.tip, text=self.text, bg="#1B1E23", fg="#FFFFFF",
-                 font=(theme.CONTENT_FONT_FAMILY, self.font_size), padx=8, pady=4,
-                 borderwidth=0).pack()
-
-    def _hide(self, event=None):
-        if self.tip:
-            self.tip.destroy()
-            self.tip = None
+    def __new__(cls, *args, **kwargs):
+        return ui.Tooltip(*args, **kwargs)
 
 
 class PatientsPage(ctk.CTkFrame):
@@ -84,27 +62,24 @@ class PatientsPage(ctk.CTkFrame):
         for widget in self.list_container.winfo_children():
             widget.destroy()
 
-        header = ctk.CTkFrame(self.list_container, fg_color="transparent")
+        header = ui.PageHeader(self.list_container, "المرضى")
         header.pack(fill="x", pady=(0, 14))
 
-        ctk.CTkLabel(header, text="المرضى", font=theme.FONT_TITLE,
-                     text_color=theme.TEXT_DARK).pack(side="right")
-
-        add_btn = ctk.CTkButton(header, text="+ إضافة مريض جديد", width=170, height=38,
+        add_btn = ctk.CTkButton(header.actions_row, text="+ إضافة مريض جديد", width=170, height=38,
                                  fg_color=theme.HEADER_GRAD_END, hover_color=theme.HEADER_GRAD_START,
                                  text_color="#FFFFFF", border_width=0,
                                  command=self.show_add_form)
         add_btn.pack(side="left")
 
         self.search_var = ctk.StringVar()
-        search_entry = ctk.CTkEntry(header, textvariable=self.search_var,
+        search_entry = ctk.CTkEntry(header.actions_row, textvariable=self.search_var,
                                      placeholder_text="ابحث بالاسم - الوظيفة - التليفون - العنوان...",
                                      width=320, height=38, justify="right")
         search_entry.pack(side="left", padx=10)
         search_entry.bind("<KeyRelease>", lambda e: self._refresh_table())
 
         self.table_frame = ctk.CTkScrollableFrame(self.list_container, fg_color=theme.CARD_BG,
-                                                    corner_radius=12)
+                                                    corner_radius=ui.CARD_RADIUS)
         self.table_frame.pack(fill="both", expand=True)
 
         self._refresh_table()
@@ -148,8 +123,7 @@ class PatientsPage(ctk.CTkFrame):
         patients = db.get_all_patients(self.search_var.get() if hasattr(self, "search_var") else "")
 
         if not patients:
-            ctk.CTkLabel(self.table_frame, text="لا يوجد مرضى مسجلين بعد",
-                         font=theme.FONT_NORMAL, text_color=theme.TEXT_MUTED).pack(pady=30)
+            ui.empty_state(self.table_frame, "لا يوجد مرضى مسجلين بعد", pady=30)
             return
 
         # جدول شبكي حقيقي (grid) بدلًا من صفوف pack منفصلة - بهذا الشكل تنضبط عناوين

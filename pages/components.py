@@ -43,16 +43,16 @@ class PageHeader(ctk.CTkFrame):
     def __init__(self, master, title, subtitle=None, **kwargs):
         super().__init__(master, fg_color="transparent", **kwargs)
 
-        title_row = ctk.CTkFrame(self, fg_color="transparent")
-        title_row.pack(fill="x")
-        ctk.CTkLabel(title_row, text=title, font=theme.FONT_TITLE,
+        self.title_row = ctk.CTkFrame(self, fg_color="transparent")
+        self.title_row.pack(fill="x")
+        ctk.CTkLabel(self.title_row, text=title, font=theme.FONT_TITLE,
                      text_color=theme.TEXT_DARK).pack(side="right")
         if subtitle:
-            ctk.CTkLabel(title_row, text=subtitle, font=theme.FONT_SMALL,
+            ctk.CTkLabel(self.title_row, text=subtitle, font=theme.FONT_SMALL,
                          text_color=theme.TEXT_MUTED).pack(side="right", padx=(8, 0))
-        # صف الأدوات (أزرار الصفحة) - فاضي افتراضيًا ويتحط فيه إيه اللي الصفحة عايزاه
-        self.actions_row = ctk.CTkFrame(self, fg_color="transparent")
-        self.actions_row.pack(fill="x", pady=(6, 0))
+        # صف الأدوات هو نفس سطر العنوان (alias) - زي الصفحات الأصلية اللي كانت
+        # بتحط أزرارها جنب العنوان في نفس السطر، مش في سطر تاني
+        self.actions_row = self.title_row
 
     def add_action(self, text, command, kind="primary", width=140, height=36):
         """بيرجّع زرار جاهز متحط في صف الأدوات - بيوحّد مقاس أزرار الهيدر كلها.
