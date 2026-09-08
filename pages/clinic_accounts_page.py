@@ -120,7 +120,7 @@ class ClinicAccountsPage(ctk.CTkFrame):
 
         # تفصيل المصروفات حسب التصنيف
         by_category = db.get_expenses_by_category(start, end)
-        cat_card = ui.card(self.content_area, title="المصروفات حسب التصنيف")
+        cat_card = ui.SectionCard(self.content_area, title="المصروفات حسب التصنيف")
         cat_card.pack(fill="x", pady=6)
 
         if not by_category:
@@ -137,7 +137,7 @@ class ClinicAccountsPage(ctk.CTkFrame):
 
         # عمولات الأطباء في نفس الفترة (مفيد لمعرفة صافي الربح الحقيقي بعد العمولات)
         commissions = db.get_doctor_commissions_summary(start, end)
-        comm_card = ui.card(self.content_area, title="عمولات الأطباء في نفس الفترة")
+        comm_card = ui.SectionCard(self.content_area, title="عمولات الأطباء في نفس الفترة")
         comm_card.pack(fill="x", pady=6)
 
         if not commissions:
