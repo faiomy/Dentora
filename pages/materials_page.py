@@ -9,13 +9,19 @@
 نص الصفحة. زرار "إضافة مصروف" موجود في هيدر الصفحة ويفتح ديالوج لإضافة
 مصروف جديد في أي تصنيف. عمود الموردين المشترك متشال للوقت الحالي لأن
 الموردين هيتم التعامل معهم جوه كل تبويب بشكل مستقل بعدين.
+
+مبنية على مكونات pages/components.py الموحّدة (هيدر/كروت/صفوف داخلية/أزرار).
 """
 
+from datetime import datetime
+
 import customtkinter as ctk
+
 import theme
 import database as db
+from pages import components as ui
+from pages.components import PageHeader
 from pages.rtl_entry import RTLEntry
-from pages.patients_page import _Tooltip
 from pages.expense_icons import get_category_icon
 
 
@@ -27,14 +33,10 @@ class MaterialsPage(ctk.CTkFrame):
         self._build()
 
     def _build(self):
-        header = ctk.CTkFrame(self, fg_color="transparent")
+        header = PageHeader(self, "المصروفات")
         header.pack(fill="x", pady=(0, 10))
-
-        theme.make_shadowed_button(header, "＋ إضافة مصروف", command=self._open_add_expense_dialog,
-                                   width=140, height=36, font=theme.FONT_SUBTITLE).pack(side="left")
-
-        ctk.CTkLabel(header, text="المصروفات", font=theme.FONT_TITLE,
-                     text_color=theme.TEXT_DARK).pack(side="right")
+        header.add_action("＋ إضافة مصروف", self._open_add_expense_dialog,
+                          kind="primary", width=140, height=36)
 
         # صف تبويبات أيقونية صغيرة لتصنيفات المصروفات - بديل المنسدلة
         # القديمة، بنفس أسلوب صف أيقونات صفحة المرضى (GlassIconButton)،
@@ -58,12 +60,13 @@ class MaterialsPage(ctk.CTkFrame):
             # فونط التلميح هنا أكبر 4 بيكسل من الافتراضي (14 بدل 10) —
             # خاص بأيقونات صفحة المصروفات بس، من غير ما يأثر على أي
             # تلميحات تانية في البرنامج بتستخدم نفس الكلاس
-            _Tooltip(btn.canvas, name, font_size=14)
+            ui.Tooltip(btn.canvas, name, font_size=14)
             self._category_tab_buttons[name] = btn
 
         # عمود المصروفات (بعرض الصفحة بالكامل دلوقتي بعد ما اتشال عمود
         # الموردين المشترك)
-        self.expenses_container = ctk.CTkScrollableFrame(self, fg_color=theme.CARD_BG, corner_radius=12)
+        self.expenses_container = ctk.CTkScrollableFrame(self, fg_color=theme.CARD_BG,
+                                                         corner_radius=ui.CARD_RADIUS)
         self.expenses_container.pack(fill="both", expand=True)
 
         self._refresh_expenses()
@@ -87,8 +90,8 @@ class MaterialsPage(ctk.CTkFrame):
         expenses = db.get_expenses(category=self._active_category)
 
         if not expenses:
-            ctk.CTkLabel(self.expenses_container, text="لا توجد مصروفات مسجلة في هذا التصنيف",
-                         font=theme.FONT_NORMAL, text_color=theme.TEXT_MUTED).pack(pady=40)
+            ui.empty_state(self.expenses_container,
+                           "لا توجد مصروفات مسجلة في هذا التصنيف")
             return
 
         total = sum(e["amount"] for e in expenses)
@@ -98,12 +101,12 @@ class MaterialsPage(ctk.CTkFrame):
         total_label.pack(anchor="e", padx=16, pady=(14, 10))
 
         for e in expenses:
-            row = ctk.CTkFrame(self.expenses_container, fg_color=theme.BG_MAIN, corner_radius=8)
+            row = ui.inner_row(self.expenses_container)
             row.pack(fill="x", padx=16, pady=4)
 
-            ctk.CTkButton(row, text="حذف", width=50, height=28, fg_color=theme.DANGER,
-                          font=theme.FONT_SMALL,
-                          command=lambda eid=e["id"]: self._delete_expense(eid)).pack(
+            ui.toolbar_button(row, "حذف",
+                              command=lambda eid=e["id"]: self._delete_expense(eid),
+                              kind="danger", width=50, height=28).pack(
                 side="left", padx=8, pady=8)
 
             ctk.CTkLabel(row, text=f"{e['amount']:g} جنيه", font=theme.FONT_SUBTITLE,
@@ -121,8 +124,12 @@ class MaterialsPage(ctk.CTkFrame):
                          anchor="e").pack(side="right", padx=8, pady=8, fill="x", expand=True)
 
     def _delete_expense(self, expense_id):
-        db.delete_expense(expense_id)
-        self._refresh_expenses()
+        # تأكيد قبل الحذف - زي باقي الإجراءات الهادمة في البرنامج
+        # (حذف موعد/مريض/سجل معالجة كلها بتأكيد)، خصوصًا إن المصروف
+        # بيدخل في حسابات العيادة الإجمالية
+        theme.confirm_dialog(
+            self, "هل أنت متأكد من حذف هذا المصروف؟ لن يمكن التراجع.",
+            lambda: (db.delete_expense(expense_id), self._refresh_expenses()))
 
     def _open_add_expense_dialog(self):
         dialog = ctk.CTkToplevel(self)
@@ -143,12 +150,13 @@ class MaterialsPage(ctk.CTkFrame):
         item_entry.pack(padx=30, pady=(2, 10), anchor="e")
 
         ctk.CTkLabel(dialog, text="المبلغ", font=theme.FONT_NORMAL).pack(anchor="e", padx=30)
-        amount_entry = ctk.CTkEntry(dialog, width=280, height=40, justify="right", font=theme.FONT_NORMAL)
+        amount_entry = ui.add_themed_entry(dialog, width=280, height=40,
+                                           justify="right", font=theme.FONT_NORMAL)
         amount_entry.pack(padx=30, pady=(2, 10), anchor="e")
 
         ctk.CTkLabel(dialog, text="التاريخ (YYYY-MM-DD)", font=theme.FONT_NORMAL).pack(anchor="e", padx=30)
-        date_entry = ctk.CTkEntry(dialog, width=280, height=40, justify="right", font=theme.FONT_NORMAL)
-        from datetime import datetime
+        date_entry = ui.add_themed_entry(dialog, width=280, height=40,
+                                         justify="right", font=theme.FONT_NORMAL)
         date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
         date_entry.pack(padx=30, pady=(2, 16), anchor="e")
 
