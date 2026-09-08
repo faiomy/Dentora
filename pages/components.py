@@ -202,6 +202,18 @@ def toolbar_button(parent, text, command, kind="primary", width=120, height=34):
                              hover_color=theme.darken_color(theme.DANGER, 0.9),
                              font=theme.FONT_SMALL, corner_radius=theme.RADIUS_SM,
                              cursor="hand2")
+    if kind == "success":
+        return ctk.CTkButton(parent, text=text, command=command, width=width,
+                             height=height, fg_color=theme.SUCCESS,
+                             hover_color=theme.darken_color(theme.SUCCESS, 0.9),
+                             font=theme.FONT_SMALL, corner_radius=theme.RADIUS_SM,
+                             cursor="hand2")
+    if kind == "warning":
+        return ctk.CTkButton(parent, text=text, command=command, width=width,
+                             height=height, fg_color=theme.WARNING,
+                             hover_color=theme.darken_color(theme.WARNING, 0.9),
+                             font=theme.FONT_SMALL, corner_radius=theme.RADIUS_SM,
+                             cursor="hand2")
     # subtle
     return ctk.CTkButton(parent, text=text, command=command, width=width,
                          height=height, fg_color=theme.CARD_BG,

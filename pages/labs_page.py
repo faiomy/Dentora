@@ -10,9 +10,9 @@
 """
 
 import customtkinter as ctk
-from tkinter import messagebox
 import theme
 import database as db
+from pages import components as ui
 from pages.rtl_entry import RTLEntry
 from pages.date_auto_entry import DateAutoEntry
 from pages.notebook_tabs import NotebookTabview
@@ -72,8 +72,7 @@ class LabsPage(ctk.CTkFrame):
     # ==================== الهيكل العام ====================
 
     def _build(self):
-        ctk.CTkLabel(self, text="المعامل", font=theme.FONT_TITLE,
-                     text_color=theme.TEXT_DARK).pack(anchor="e", pady=(0, 10))
+        ui.PageHeader(self, "المعامل").pack(anchor="e", pady=(0, 10))
 
         self.tabview = NotebookTabview(self, font=theme.FONT_NAV,
                                        border_color=theme.ACCENT_BORDER,
@@ -144,15 +143,14 @@ class LabsPage(ctk.CTkFrame):
         orders = db.get_lab_orders(lab_id=self.order_lab_filter, status=self.order_status_filter,
                                     search=self.order_search or None)
         if not orders:
-            ctk.CTkLabel(self.orders_list, text="لا توجد حالات مطابقة",
-                         font=theme.FONT_NORMAL, text_color=theme.TEXT_MUTED).pack(pady=30)
+            ui.empty_state(self.orders_list, "لا توجد حالات مطابقة", pady=30)
             return
 
         for order in orders:
             self._render_order_row(order)
 
     def _render_order_row(self, order):
-        card = ctk.CTkFrame(self.orders_list, fg_color=theme.CARD_BG, corner_radius=10)
+        card = ui.card(self.orders_list, corner_radius=10)
         card.pack(fill="x", pady=5, padx=2)
 
         top = ctk.CTkFrame(card, fg_color="transparent")
@@ -196,36 +194,33 @@ class LabsPage(ctk.CTkFrame):
         actions = ctk.CTkFrame(card, fg_color="transparent")
         actions.pack(fill="x", padx=14, pady=(0, 10))
 
-        ctk.CTkButton(actions, text="حذف", width=70, height=30, fg_color=theme.DANGER,
-                      command=lambda o=order: self._delete_order(o)).pack(side="left", padx=3)
-        ctk.CTkButton(actions, text="تعديل", width=70, height=30,
-                      fg_color=theme.PRIMARY_LIGHT,
-                      command=lambda o=order: self._open_edit_order_dialog(o)).pack(side="left", padx=3)
+        ui.toolbar_button(actions, "حذف", width=70, height=30, kind="danger",
+                          command=lambda o=order: self._delete_order(o)).pack(side="left", padx=3)
+        ui.toolbar_button(actions, "تعديل", width=70, height=30, kind="primary",
+                          command=lambda o=order: self._open_edit_order_dialog(o)).pack(side="left", padx=3)
 
         # أزرار تغيير سريعة للحالة التالية المنطقية
         next_status_map = {"sent": "in_progress", "in_progress": "received", "received": "delivered"}
         next_status = next_status_map.get(order["status"])
         if next_status:
-            ctk.CTkButton(actions, text=f"➜ {STATUS_LABELS[next_status]}", height=30,
-                          fg_color=theme.SUCCESS,
-                          command=lambda o=order, s=next_status: self._quick_set_status(o, s)
-                          ).pack(side="right", padx=3)
+            ui.toolbar_button(actions, f"➜ {STATUS_LABELS[next_status]}", height=30,
+                              kind="success",
+                              command=lambda o=order, s=next_status: self._quick_set_status(o, s)
+                              ).pack(side="right", padx=3)
         if order["status"] not in ("cancelled", "delivered"):
-            ctk.CTkButton(actions, text="إلغاء الحالة", width=90, height=30,
-                          fg_color=theme.BG_MAIN, text_color=theme.TEXT_DARK,
-                          border_width=1, border_color=theme.BORDER,
-                          command=lambda o=order: self._quick_set_status(o, "cancelled")
-                          ).pack(side="right", padx=3)
+            ui.toolbar_button(actions, "إلغاء الحالة", width=90, height=30, kind="subtle",
+                              command=lambda o=order: self._quick_set_status(o, "cancelled")
+                              ).pack(side="right", padx=3)
 
     def _quick_set_status(self, order, status):
         db.set_lab_order_status(order["id"], status)
         self._refresh_orders()
 
     def _delete_order(self, order):
-        if not messagebox.askyesno("تأكيد الحذف", "هل تريد حذف هذه الحالة نهائيًا؟\nسيتم حذف أي حركة مالية مرتبطة بها من حساب المعمل أيضًا."):
-            return
-        db.delete_lab_order(order["id"])
-        self._refresh_orders()
+        theme.confirm_dialog(
+            self, "هل تريد حذف هذه الحالة نهائيًا؟\nسيتم حذف أي حركة مالية مرتبطة بها من حساب المعمل أيضًا.",
+            lambda: (db.delete_lab_order(order["id"]), self._refresh_orders()),
+            title="تأكيد الحذف")
 
     def _open_add_order_dialog(self):
         self._open_order_dialog(order=None)
@@ -236,7 +231,8 @@ class LabsPage(ctk.CTkFrame):
     def _open_order_dialog(self, order):
         labs = db.get_labs(active_only=True)
         if not labs:
-            messagebox.showwarning("لا يوجد معامل", "لازم تضيف معمل واحد على الأقل أولاً من تاب \"المعامل\"")
+            theme.confirm_dialog(self, "لازم تضيف معمل واحد على الأقل أولاً من تاب \"المعامل\"",
+                                 lambda: None, title="لا يوجد معامل")
             return
 
         is_edit = order is not None
@@ -384,7 +380,7 @@ class LabsPage(ctk.CTkFrame):
         def save():
             treatment_label = treatment_entry.get().strip()
             if not treatment_label:
-                messagebox.showwarning("بيانات ناقصة", "لازم تكتب اسم البند العلاجي")
+                theme.show_toast(self, "لازم تكتب اسم البند العلاجي", kind="error")
                 return
             try:
                 tooth_number = int(tooth_entry.get().strip()) if tooth_entry.get().strip() else None
@@ -437,11 +433,10 @@ class LabsPage(ctk.CTkFrame):
             w.destroy()
         labs = db.get_labs()
         if not labs:
-            ctk.CTkLabel(self.labs_list, text="لا توجد معامل مسجلة",
-                         font=theme.FONT_NORMAL, text_color=theme.TEXT_MUTED).pack(pady=30)
+            ui.empty_state(self.labs_list, "لا توجد معامل مسجلة", pady=30)
             return
         for lab in labs:
-            card = ctk.CTkFrame(self.labs_list, fg_color=theme.CARD_BG, corner_radius=10)
+            card = ui.card(self.labs_list, corner_radius=10)
             card.pack(fill="x", pady=5, padx=2)
 
             row = ctk.CTkFrame(card, fg_color="transparent")
@@ -454,14 +449,14 @@ class LabsPage(ctk.CTkFrame):
 
             btns = ctk.CTkFrame(row, fg_color="transparent")
             btns.pack(side="left")
-            ctk.CTkButton(btns, text="حذف", width=70, height=30, fg_color=theme.DANGER,
-                          command=lambda l=lab: self._delete_lab(l)).pack(side="left", padx=3)
+            ui.toolbar_button(btns, "حذف", width=70, height=30, kind="danger",
+                              command=lambda l=lab: self._delete_lab(l)).pack(side="left", padx=3)
             toggle_text = "تعطيل" if lab["active"] else "تفعيل"
-            ctk.CTkButton(btns, text=toggle_text, width=70, height=30,
-                          fg_color=theme.WARNING if lab["active"] else theme.SUCCESS,
-                          command=lambda l=lab: self._toggle_lab(l)).pack(side="left", padx=3)
-            ctk.CTkButton(btns, text="تعديل", width=70, height=30, fg_color=theme.PRIMARY_LIGHT,
-                          command=lambda l=lab: self._open_edit_lab_dialog(l)).pack(side="left", padx=3)
+            ui.toolbar_button(btns, toggle_text, width=70, height=30,
+                              kind="warning" if lab["active"] else "success",
+                              command=lambda l=lab: self._toggle_lab(l)).pack(side="left", padx=3)
+            ui.toolbar_button(btns, "تعديل", width=70, height=30, kind="primary",
+                              command=lambda l=lab: self._open_edit_lab_dialog(l)).pack(side="left", padx=3)
 
             details = []
             if lab.get("phone"):
@@ -480,15 +475,13 @@ class LabsPage(ctk.CTkFrame):
         self._refresh_labs()
 
     def _delete_lab(self, lab):
-        if not messagebox.askyesno(
-                "تأكيد الحذف",
-                f"هل تريد حذف معمل \"{lab['name']}\" نهائيًا؟\n"
-                "سيتم حذف كل الحالات وحركات الحساب المرتبطة به.\n"
-                "(الأفضل استخدام \"تعطيل\" بدل الحذف لو عندك سجل تعاملات قديم معه)"):
-            return
-        db.delete_lab(lab["id"])
-        self._refresh_labs()
-        self._refresh_orders()
+        theme.confirm_dialog(
+            self,
+            f"هل تريد حذف معمل \"{lab['name']}\" نهائيًا؟\n"
+            "سيتم حذف كل الحالات وحركات الحساب المرتبطة به.\n"
+            "(الأفضل استخدام \"تعطيل\" بدل الحذف لو عندك سجل تعاملات قديم معه)",
+            lambda: (db.delete_lab(lab["id"]), self._refresh_labs(), self._refresh_orders()),
+            title="تأكيد الحذف")
 
     def _open_add_lab_dialog(self):
         self._open_lab_dialog(lab=None)
@@ -540,7 +533,7 @@ class LabsPage(ctk.CTkFrame):
         def save():
             name = name_entry.get().strip()
             if not name:
-                messagebox.showwarning("بيانات ناقصة", "لازم تكتب اسم المعمل")
+                theme.show_toast(self, "لازم تكتب اسم المعمل", kind="error")
                 return
             if is_edit:
                 db.update_lab(lab["id"], name, phone_entry.get().strip(),
@@ -670,11 +663,11 @@ class LabsPage(ctk.CTkFrame):
                               command=lambda t=tx: self._delete_payment(t)).pack(side="left", padx=8)
 
     def _delete_payment(self, tx):
-        if not messagebox.askyesno("تأكيد", "هل تريد حذف هذه الدفعة؟"):
-            return
-        db.delete_lab_transaction(tx["id"])
-        self._refresh_labs_balances()
-        self._refresh_account_detail()
+        theme.confirm_dialog(self, "هل تريد حذف هذه الدفعة؟",
+                             lambda: (db.delete_lab_transaction(tx["id"]),
+                                      self._refresh_labs_balances(),
+                                      self._refresh_account_detail()),
+                             title="تأكيد")
 
     def _open_add_payment_dialog(self):
         if not self.selected_account_lab_id:
@@ -704,10 +697,10 @@ class LabsPage(ctk.CTkFrame):
             try:
                 amount = float(amount_entry.get().strip())
             except ValueError:
-                messagebox.showwarning("قيمة غير صحيحة", "اكتب مبلغ صحيح")
+                theme.show_toast(self, "اكتب مبلغ صحيح", kind="error")
                 return
             if amount <= 0:
-                messagebox.showwarning("قيمة غير صحيحة", "المبلغ لازم يكون أكبر من صفر")
+                theme.show_toast(self, "المبلغ لازم يكون أكبر من صفر", kind="error")
                 return
             db.add_lab_transaction(self.selected_account_lab_id, "payment", amount,
                                    description=notes_entry.get(),
@@ -742,8 +735,7 @@ class LabsPage(ctk.CTkFrame):
             w.destroy()
 
         if not self.settings_price_list_id:
-            ctk.CTkLabel(self.settings_list, text="لا توجد قائمة أسعار فعّالة حاليًا",
-                         font=theme.FONT_NORMAL, text_color=theme.TEXT_MUTED).pack(pady=30)
+            ui.empty_state(self.settings_list, "لا توجد قائمة أسعار فعّالة حاليًا", pady=30)
             return
 
         items = db.get_treatment_items_with_lab_settings(self.settings_price_list_id)
@@ -751,12 +743,11 @@ class LabsPage(ctk.CTkFrame):
         lab_values = ["بدون معمل افتراضي"] + _lab_names(labs)
 
         if not items:
-            ctk.CTkLabel(self.settings_list, text="لا توجد بنود علاجية مسجلة",
-                         font=theme.FONT_NORMAL, text_color=theme.TEXT_MUTED).pack(pady=30)
+            ui.empty_state(self.settings_list, "لا توجد بنود علاجية مسجلة", pady=30)
             return
 
         for item in items:
-            row = ctk.CTkFrame(self.settings_list, fg_color=theme.CARD_BG, corner_radius=10)
+            row = ui.card(self.settings_list, corner_radius=10)
             row.pack(fill="x", pady=4, padx=2)
 
             top = ctk.CTkFrame(row, fg_color="transparent")
