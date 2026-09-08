@@ -166,6 +166,14 @@ class FormFieldRow(ctk.CTkFrame):
 
 # ---------------- زرار الشريط الموحّد ----------------
 
+def add_themed_entry(parent, width=220, height=34, **entry_kwargs):
+    """حقل إدخال جاهز بشكل الحقول الموحّد (سطح فاتح + حد رفيع + استدارة صغيرة)
+    - للاستخدام المباشر جوه أي صف/كارت من غير FormFieldRow."""
+    entry = ctk.CTkEntry(parent, width=width, height=height, **entry_kwargs)
+    theme.apply_sunken_style(entry)
+    return entry
+
+
 def toolbar_button(parent, text, command, kind="primary", width=120, height=34):
     """زرار مصغّر لشريط الفلاتر/الأدوات جوه الصفحة (زي أزرار اليوم/الشهر/السنة
     في حسابات العيادة) - مقاس ولون موحّد بدل الأحجام المتفرقة."""

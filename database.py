@@ -845,6 +845,27 @@ def init_db():
     cur.execute("UPDATE clinic_settings SET remembered_password = NULL "
                 "WHERE remembered_password IS NOT NULL")
 
+    # ---------------- سجل رسائل n8n ----------------
+    # كل رسالة بتتبعت عبر webhook بتاع n8n بتتسجل هنا بحالتها
+    # (pending/sent/failed) وعدد المحاولات وآخر خطأ - والرسائل اللي
+    # فشلت بترجع لحالة "pending" عشان تتبعت تاني أول ما البرنامج يفتح.
+    # ده هو المصدر الموحّد لتاريخ الرسايل - مكانه الطبيعي جنب message_templates
+    # لأن الاتنين بيتعاملوا مع رسايل المواعيد والتذكيرات.
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS n8n_message_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            phone TEXT NOT NULL,
+            message TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending', 'sent', 'failed')),
+            attempts INTEGER NOT NULL DEFAULT 0,
+            error TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+            sent_at TEXT,
+            last_attempt_at TEXT
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -3171,3 +3192,72 @@ def build_whatsapp_desktop_link(phone_number, message_text):
         digits = "2" + digits
     encoded_text = urllib.parse.quote(message_text)
     return f"whatsapp://send?phone={digits}&text={encoded_text}"
+
+
+# ---------------- سجل رسائل n8n ----------------
+# كل رسالة بتتبعت عبر webhook بتاع n8n بتتسجل هنا بحالتها وعدد المحاولات
+# وآخر خطأ - والرسايل اللي فشلت كل محاولاتها بترجع لحالة "pending" عشان
+# تتبعت تاني أول ما البرنامج يفتح (شوف pages/n8n_page.py).
+
+N8N_MAX_ATTEMPTS = 3
+
+
+def add_n8n_message(phone, message):
+    """بتسجل رسالة جديدة بحالة "بانتظار الإرسال" وبترجع رقمها في السجل"""
+    conn = get_connection()
+    cur = conn.execute(
+        "INSERT INTO n8n_message_log (phone, message, status) VALUES (?, ?, 'pending')",
+        (phone, message))
+    record_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return record_id
+
+
+def mark_n8n_message_status(record_id, status, error=None):
+    """بتحدّث حالة رسالة مسجلة: sent (نجحت) / pending (بانتظار إعادة محاولة)
+    / failed (فشلت بعد كل المحاولات) - وبتزيد عداد المحاولات مع كل تحديث
+    مش نهائي (يعني كل محاولة جديدة فعلًا)، وبتمسح آخر خطأ لو نجحت"""
+    if status not in ("pending", "sent", "failed"):
+        raise ValueError(f"mark_n8n_message_status: حالة غير معروفة '{status}'")
+    conn = get_connection()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if status == "sent":
+        conn.execute(
+            "UPDATE n8n_message_log SET status = ?, attempts = attempts + 1, "
+            "error = NULL, sent_at = ?, last_attempt_at = ? WHERE id = ?",
+            (status, now, now, record_id))
+    else:  # pending / failed - محاولة اتسجلت ولسه مش ناجحة
+        conn.execute(
+            "UPDATE n8n_message_log SET status = ?, attempts = attempts + 1, "
+            "error = ?, last_attempt_at = ? WHERE id = ?",
+            (status, error, now, record_id))
+    conn.commit()
+    conn.close()
+
+
+def get_n8n_message_log(limit=30):
+    """آخر الرسايل المسجلة (الأحدث أولًا) - لعرضها في صفحة n8n"""
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT * FROM n8n_message_log ORDER BY id DESC LIMIT ?", (int(limit),)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_n8n_pending_messages():
+    """كل الرسايل اللي لسه "بانتظار الإرسال" - بتتبعت تاني أول ما البرنامج يفتح"""
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT * FROM n8n_message_log WHERE status = 'pending' ORDER BY id").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_n8n_pending_count():
+    """عدد الرسايل المعلّقة (للعرض في السجل)"""
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT COUNT(*) FROM n8n_message_log WHERE status = 'pending'").fetchone()
+    conn.close()
+    return row[0] if row else 0
