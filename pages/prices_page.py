@@ -15,6 +15,7 @@ import customtkinter as ctk
 import tkinter as tk
 import theme
 import database as db
+from pages import components as ui
 from pages.rtl_entry import RTLEntry
 from pages.treatment_variants_dialog import TreatmentVariantsDialog
 from pages import tooth_symbols
@@ -107,23 +108,21 @@ class PricesPage(ctk.CTkFrame):
         self._build()
 
     def _build(self):
-        header = ctk.CTkFrame(self, fg_color="transparent")
+        header = ui.PageHeader(self, "الإجراءات الطبية")
         header.pack(fill="x", pady=(0, 14))
-        ctk.CTkLabel(header, text="الإجراءات الطبية", font=PAGE_FONT,
-                     text_color=theme.TEXT_DARK).pack(side="right")
 
         # كل أزرار الهيدر بنفس الشكل والحجم واللون والفونط (فرق اللون
         # الوحيد هو لزرار الحذف في الصف اللي تحت)، ومرتبين بمسافات
         # متساوية واضحة بينهم
-        _make_button(header, "+ قائمة أسعار جديدة", self._open_new_list_dialog).pack(
+        _make_button(header.actions_row, "+ قائمة أسعار جديدة", self._open_new_list_dialog).pack(
             side="left", padx=(6, 0))
         # الطريقة الوحيدة دلوقتي لتعديل أو حذف الإجراءات الطبية نفسها
         # بالإضافة لإدارة أنواعها الفرعية وألوانها وأسعارها
-        _make_button(header, "إدارة الإجراءات الطبية", self._open_variants_manager).pack(
+        _make_button(header.actions_row, "إدارة الإجراءات الطبية", self._open_variants_manager).pack(
             side="left", padx=6)
         # زرار الحفظ الوحيد للصفحة كلها - أي تعديل (اسم/رمز) في أي عدد
         # من البنود بيتجمع، ولما تدوس هنا بيتحفظ كل حاجة مرة واحدة
-        self.save_all_btn = _make_button(header, "حفظ كل التغييرات", self._save_all)
+        self.save_all_btn = _make_button(header.actions_row, "حفظ كل التغييرات", self._save_all)
         self.save_all_btn.pack(side="left", padx=6)
 
         lists_row = ctk.CTkFrame(self, fg_color="transparent")
