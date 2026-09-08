@@ -238,6 +238,93 @@ def empty_state(parent, text, icon=None, pady=40):
     return box
 
 
+# ---------------- معاينة الثيم الحية ----------------
+
+class ThemePreviewBox(ctk.CTkFrame):
+    """معاينة حية مصغّرة لشكل الثيم: هيدر متدرج فيه اسم البرنامج وأزرار شريط
+    مصغّرة، وتحته كارت فيه حقل إدخال وزرار أساسي - كلها بترسم بلوحة ألوان
+    الثيم المُعايَن عبر theme.preview_theme، من غير ما يتغيّر الثيم الفعلي
+    للبرنامج ولا يتم لمس قاعدة البيانات. بتنفع للمعاينة قبل التطبيق في صفحة
+    الإعدادات: المستخدم يشوف الشكل وهو بيعدي على الألوان، ويطبّق بس لما يضغط."""
+
+    def __init__(self, master, width=260, height=180, **kwargs):
+        kwargs.setdefault("fg_color", theme.BG_MAIN)
+        kwargs.setdefault("corner_radius", CARD_RADIUS)
+        kwargs.setdefault("width", width)
+        kwargs.setdefault("height", height)
+        super().__init__(master, **kwargs)
+        self.pack_propagate(False)
+        self._canvas = tk.Canvas(self, highlightthickness=0, bd=0, bg=theme.BG_MAIN)
+        self._canvas.place(x=0, y=0, relwidth=1, relheight=1)
+        self._current_theme_id = None
+        self.bind("<Configure>",
+                  lambda e: self.render(self._current_theme_id) if self._current_theme_id else None)
+
+    def render(self, theme_id):
+        """بيرسم المعاينة بلوحة ألوان الثيم المحدد (مؤقتًا جوه preview_theme)"""
+        if not theme_id:
+            return
+        self._current_theme_id = theme_id
+        canvas = self._canvas
+        w = self.winfo_width() or int(self.cget("width"))
+        h = self.winfo_height() or int(self.cget("height"))
+        if w <= 2 or h <= 2:
+            return
+        canvas.delete("all")
+
+        with theme.preview_theme(theme_id):
+            canvas.configure(bg=theme.BG_MAIN)
+
+            # --- الهيدر المتدرج + الاسم + أزرار شريط مصغّرة ---
+            header_h = max(46, h // 3)
+            theme.draw_vertical_gradient(canvas, w, header_h,
+                                         theme.HEADER_GRAD_START, theme.HEADER_GRAD_END)
+            canvas.create_text(w - 12, header_h / 2, anchor="e", text="Dentora",
+                               font=(theme.FONT_FAMILY, 12, "bold"), fill="#FFFFFF")
+            btn_w, btn_h, gap = 24, 17, 5
+            x = 12
+            for i in range(3):
+                x1, y1 = x, (header_h - btn_h) / 2
+                x2, y2 = x1 + btn_w, y1 + btn_h
+                if i == 0:  # الزرار النشط: خلفية الكارت وأيقونة بلون الثيم
+                    bg, ic, outline = theme.CARD_BG, theme.PRIMARY_LIGHT, theme.BORDER
+                else:
+                    bg = ic = outline = "#FFFFFF"
+                pts = theme.rounded_rect_points(x1, y1, x2, y2, 5)
+                canvas.create_polygon(pts, smooth=True, fill=bg, outline=outline)
+                canvas.create_rectangle((x1 + x2) / 2 - 5, (y1 + y2) / 2 - 2,
+                                        (x1 + x2) / 2 + 5, (y1 + y2) / 2 + 2,
+                                        fill=ic, outline=ic)
+                x = x2 + gap
+
+            # خط الحد المميز تحت الهيدر (جزء من هوية الثيم)
+            canvas.create_rectangle(0, header_h, w, header_h + 2,
+                                    fill=theme.ACCENT_BORDER, outline=theme.ACCENT_BORDER)
+
+            # --- كارت أبيض فيه حقل إدخال وزرار أساسي ---
+            card_m = 14
+            cx1, cx2 = card_m, w - card_m
+            cy1, cy2 = header_h + 12, h - 12
+            pts = theme.rounded_rect_points(cx1, cy1, cx2, cy2, CARD_RADIUS)
+            canvas.create_polygon(pts, smooth=True, fill=theme.CARD_BG, outline=theme.BORDER)
+
+            # حقل إدخال (يمين الكارت - RTL)
+            er, et = cx2 - 14, cy1 + 12
+            el, eb = er - 100, et + 20
+            pts = theme.rounded_rect_points(el, et, er, eb, 5)
+            canvas.create_polygon(pts, smooth=True, fill=theme.INPUT_SUNKEN_BG,
+                                  outline=theme.INPUT_SUNKEN_BORDER)
+
+            # زرار أساسي بلون الثيم
+            br, bt = er, eb + 10
+            bl, bb = br - 60, bt + 22
+            pts = theme.rounded_rect_points(bl, bt, br, bb, 6)
+            canvas.create_polygon(pts, smooth=True,
+                                  fill=theme.PRIMARY_LIGHT, outline=theme.PRIMARY_LIGHT)
+            canvas.create_text((bl + br) / 2, (bt + bb) / 2, text="زرار",
+                               font=(theme.FONT_FAMILY, 9), fill="#FFFFFF")
+
+
 # ---------------- التلميح الموحّد ----------------
 
 class Tooltip:

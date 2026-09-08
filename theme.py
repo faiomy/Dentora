@@ -5,6 +5,11 @@
 """
 
 import os
+import sys
+
+# مرجع للوحدة نفسها - محتاجينه جوه preview_theme (context manager) عشان
+# نقدر نعدّل ونعيد توكنز الألوان على مستوى الوحدة
+theme_module = sys.modules[__name__]
 
 # ---------------- اسم وشعار "البرنامج" نفسه (العلامة التجارية العامة) ----------------
 # ده مختلف عن اسم/لوجو "العيادة" اللي بيستخدم البرنامج (اللي بيتغير من صفحة
@@ -357,6 +362,69 @@ THEME_PRESETS = {
     },
 }
 DEFAULT_THEME_ID = "clean_medical"
+
+
+class preview_theme:
+    """Context manager بيرجّع مؤقتًا ثوابت الألوان المحايدة للثيم المحدد
+    (من غير ما يلمس قاعدة البيانات ولا أي ودجت)، وبعد الخروج بيرجّع كل
+    حاجة زي ما كانت بالظبط.
+
+    ده اللي بيسمح بمكوّن "المعاينة الحية" في صفحة الإعدادات: بتبني معاينة
+    مصغّرة لشكل البرنامج (هيدر متدرج + أزرار + كارت + حقل) بلوحة ألوان
+    أي ثيم المستخدم بيعدي عليه بالماوس - من غير تطبيق فعلي ولا إعادة بناء
+    للصفحات، والثيم الحالي بيفضل شغال زي ما هو.
+
+    الاستخدام:
+        with theme.preview_theme("emerald_exec"):
+            draw_preview_widgets()   # كل توكنز theme بتاعة الثيم المُعايَن
+        # بعد الخروج: توكنز الثيم الفعلي رجعت زي ما كانت
+    """
+
+    _TOKEN_NAMES = ("BG_MAIN", "CARD_BG", "TEXT_DARK", "TEXT_MUTED", "BORDER",
+                     "HEADER_GRAD_START", "HEADER_GRAD_END", "ACCENT_BORDER",
+                     "PRIMARY_LIGHT", "TAB_ACTIVE_BG", "TAB_INACTIVE_BG",
+                     "TAB_ACTIVE_GRAD_TOP", "TAB_ACTIVE_GRAD_BOTTOM",
+                     "TAB_INACTIVE_GRAD_TOP", "TAB_INACTIVE_GRAD_BOTTOM")
+
+    def __init__(self, theme_id):
+        self._theme_id = theme_id
+        self._saved = None
+
+    def __enter__(self):
+        preset = THEME_PRESETS.get(self._theme_id)
+        if not preset:
+            return self
+        _fill_theme_defaults(preset)
+        self._saved = {name: getattr(theme_module, name)
+                       for name in self._TOKEN_NAMES}
+        # PRIMARY_LIGHT في التشغيل العادي بيتحدد من primary_color في الإعدادات،
+        # وفي المعاينة بنشتقه من لون الثيم المُعايَن نفسه
+        theme_module.PRIMARY_LIGHT = preset["primary"]
+        for name in self._TOKEN_NAMES:
+            key = name.lower()
+            if key in preset:
+                setattr(theme_module, name, preset[key])
+            elif name == "TAB_ACTIVE_BG":
+                setattr(theme_module, name, preset["tab_active"])
+            elif name == "TAB_INACTIVE_BG":
+                setattr(theme_module, name, preset["tab_inactive"])
+            elif name == "TAB_ACTIVE_GRAD_TOP":
+                setattr(theme_module, name, preset["tab_active_grad_top"])
+            elif name == "TAB_ACTIVE_GRAD_BOTTOM":
+                setattr(theme_module, name, preset["tab_active_grad_bottom"])
+            elif name == "TAB_INACTIVE_GRAD_TOP":
+                setattr(theme_module, name, preset["tab_inactive_grad_top"])
+            elif name == "TAB_INACTIVE_GRAD_BOTTOM":
+                setattr(theme_module, name, preset["tab_inactive_grad_bottom"])
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if self._saved:
+            for name, value in self._saved.items():
+                setattr(theme_module, name, value)
+            self._saved = None
+        return False
+
 
 
 def darken_color(hex_color, factor=0.78):

@@ -345,6 +345,12 @@ class SettingsPage(ctk.CTkFrame):
         grid = ctk.CTkFrame(outer, fg_color="transparent")
         grid.pack(padx=10, pady=(0, 10))
 
+        # المعاينة الحية: كل ما الماوس يعدي على لون، المعاينة اللي تحت بترسم
+        # شكل البرنامج بلوحة ألوان الثيم ده - من غير ما الثيم الفعلي يتغيّر
+        self._theme_preview = ui.ThemePreviewBox(outer, width=250, height=170)
+        self._theme_preview.pack(padx=10, pady=(0, 10))
+        self._theme_preview.render(self._current_theme_id)
+
         cols = 5
         for idx, (theme_id, preset) in enumerate(theme.THEME_PRESETS.items()):
             r, c = divmod(idx, cols)
@@ -356,10 +362,17 @@ class SettingsPage(ctk.CTkFrame):
                 border_width=2 if is_active else 0, border_color=theme.TEXT_DARK,
                 command=lambda tid=theme_id: self._pick_theme_from_popup(tid))
             dot.grid(row=r, column=c, padx=4, pady=4)
-            dot.bind("<Enter>", lambda e, name=preset["name"]: self._theme_popup_name_label.configure(text=name))
+            dot.bind("<Enter>", lambda e, tid=theme_id, name=preset["name"]:
+                     self._on_theme_hover(tid, name))
 
         popup.after(200, lambda: self._arm_theme_popup_autoclose(popup))
         self._theme_popup = popup
+
+    def _on_theme_hover(self, theme_id, name):
+        """هوفر على لون في المنسدلة: بيطبع اسم الثيم ويعرض معاينة حية له"""
+        self._theme_popup_name_label.configure(text=name)
+        if getattr(self, "_theme_preview", None) and self._theme_preview.winfo_exists():
+            self._theme_preview.render(theme_id)
 
     def _arm_theme_popup_autoclose(self, popup):
         """بنراقب أي نقرة (Button-1) بتحصل في أي حتة في البرنامج، ولو كانت
