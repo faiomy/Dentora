@@ -139,7 +139,7 @@ class SettingsPage(ctk.CTkFrame):
 
         # اللوجو
         row = self._field_row(card, "لوجو العيادة")
-        ctk.CTkButton(row, text="اختيار صورة اللوجو", width=160, height=32, font=HEADER_LABEL_FONT,
+        ctk.CTkButton(row, text=theme.rtl_fix("اختيار صورة اللوجو"), width=160, height=32, font=HEADER_LABEL_FONT,
                       fg_color=theme.PRIMARY_LIGHT,
                       command=self._choose_logo).pack(side="right")
         self.logo_path_label = ctk.CTkLabel(
@@ -153,7 +153,7 @@ class SettingsPage(ctk.CTkFrame):
 
         # أرقام تليفونات العيادة
         row = self._field_row(card, "أرقام تليفونات العيادة", pady=(4, 4))
-        add_phone_btn = ctk.CTkButton(row, text="+ رقم جديد", width=100, height=30, font=HEADER_LABEL_FONT,
+        add_phone_btn = ctk.CTkButton(row, text=theme.rtl_fix("+ رقم جديد"), width=100, height=30, font=HEADER_LABEL_FONT,
                                        fg_color="transparent", border_width=1, border_color=theme.BORDER,
                                        text_color=theme.TEXT_DARK,
                                        command=lambda: self._add_phone_row())
@@ -253,7 +253,7 @@ class SettingsPage(ctk.CTkFrame):
             ctk.CTkFrame(card, fg_color=theme.BORDER, height=1).pack(fill="x", padx=22, pady=(10, 4))
             reset_row = ctk.CTkFrame(card, fg_color="transparent")
             reset_row.pack(fill="x", padx=22, pady=(2, 16))
-            ctk.CTkButton(reset_row, text="↺ رجّع مظهر العيادة الافتراضي", height=32,
+            ctk.CTkButton(reset_row, text=theme.rtl_fix("↺ رجّع مظهر العيادة الافتراضي"), height=32,
                           fg_color=theme.INPUT_SUNKEN_BG, text_color=theme.TEXT_DARK,
                           hover_color=theme.darken_color(theme.INPUT_SUNKEN_BG, 0.9),
                           font=HEADER_LABEL_FONT,
@@ -637,7 +637,7 @@ class SettingsPage(ctk.CTkFrame):
         header.pack(fill="x", padx=22, pady=(0, 10))
         ctk.CTkLabel(header, text="المستخدمون", font=theme.FONT_SUBTITLE,
                      text_color=theme.TEXT_DARK).pack(side="right")
-        ctk.CTkButton(header, text="+ إضافة مستخدم", width=140, height=34, font=HEADER_LABEL_FONT,
+        ctk.CTkButton(header, text=theme.rtl_fix("+ إضافة مستخدم"), width=140, height=34, font=HEADER_LABEL_FONT,
                       fg_color=theme.PRIMARY_LIGHT,
                       command=self._open_add_user_dialog).pack(side="left")
 
@@ -653,7 +653,7 @@ class SettingsPage(ctk.CTkFrame):
                               command=lambda uid=u["id"]: self._deactivate_user(uid)
                               ).pack(side="left", padx=8, pady=8)
 
-            ctk.CTkButton(row, text="🔑 كلمة المرور", width=110, height=28,
+            ctk.CTkButton(row, text=theme.rtl_fix("🔑 كلمة المرور"), width=110, height=28,
                           font=theme.FONT_SMALL, fg_color=theme.CARD_BG, text_color=theme.TEXT_DARK,
                           border_width=1, border_color=theme.BORDER,
                           command=lambda uid=u["id"], uname=u["username"], fname=u["full_name"]:
@@ -881,5 +881,5 @@ class SettingsPage(ctk.CTkFrame):
             status_label.configure(text="✔ اتغيّرت وتم التأكد إنها شغالة", text_color=theme.SUCCESS)
             dialog.after(700, dialog.destroy)
 
-        ctk.CTkButton(dialog, text="حفظ كلمة المرور الجديدة", height=44, fg_color=theme.SUCCESS,
+        ctk.CTkButton(dialog, text=theme.rtl_fix("حفظ كلمة المرور الجديدة"), height=44, fg_color=theme.SUCCESS,
                       command=save).pack(padx=30, pady=10, fill="x")

@@ -29,9 +29,9 @@ class ClinicAccountsPage(ctk.CTkFrame):
         quick_row.pack(fill="x", pady=(0, 10))
         ctk.CTkButton(quick_row, text="اليوم", width=90, height=34, fg_color=theme.PRIMARY_LIGHT,
                       command=self._set_today).pack(side="right", padx=4)
-        ctk.CTkButton(quick_row, text="هذا الشهر", width=90, height=34, fg_color=theme.PRIMARY_LIGHT,
+        ctk.CTkButton(quick_row, text=theme.rtl_fix("هذا الشهر"), width=90, height=34, fg_color=theme.PRIMARY_LIGHT,
                       command=self._set_this_month).pack(side="right", padx=4)
-        ctk.CTkButton(quick_row, text="هذه السنة", width=90, height=34, fg_color=theme.PRIMARY_LIGHT,
+        ctk.CTkButton(quick_row, text=theme.rtl_fix("هذه السنة"), width=90, height=34, fg_color=theme.PRIMARY_LIGHT,
                       command=self._set_this_year).pack(side="right", padx=4)
 
         # فترة مخصصة
@@ -45,7 +45,7 @@ class ClinicAccountsPage(ctk.CTkFrame):
         self.end_entry = ctk.CTkEntry(custom_row, width=120, justify="center", font=theme.FONT_NORMAL)
         self.end_entry.insert(0, self.end_date.isoformat())
         self.end_entry.pack(side="right", padx=4)
-        ctk.CTkButton(custom_row, text="تطبيق الفترة", width=110, height=34, fg_color=theme.ACCENT_BORDER,
+        ctk.CTkButton(custom_row, text=theme.rtl_fix("تطبيق الفترة"), width=110, height=34, fg_color=theme.ACCENT_BORDER,
                       command=self._apply_custom_range).pack(side="right", padx=8)
 
         self.content_area = ctk.CTkScrollableFrame(self, fg_color="transparent")
