@@ -332,6 +332,58 @@ THEME_PRESETS = {
         "bg_main": "#FFFBEF", "card_bg": "#FFFFFF",
         "text_dark": "#2A2410", "text_muted": "#8C7E4E", "border": "#F6ECC4",
     },
+    # ---- ثيمات إضافية (ألوان هادئة راقية مكمّلة للوحة الأساسية) ----
+    "porcelain": {
+        # أزرق بورسلان هادئ - مناسب لعيادة أسنان (لون البورسلان نفسه)
+        "name": "أزرق بورسلان هادئ",
+        "primary": "#5B8BB0", "secondary": "#33566F",
+        "bg_main": "#F4F8FA", "card_bg": "#FFFFFF",
+        "text_dark": "#1C2733", "text_muted": "#647A8A", "border": "#D9E4EA",
+        "header_grad_start": "#6FA0C8", "header_grad_end": "#23405A",
+        "accent_border": "#33566F",
+        "tab_active": "#FFFFFF", "tab_inactive": "#E1EBF1",
+    },
+    "dusty_rose": {
+        # وردي ترابي مطفأ - أرقى من الوردي الكلاسيكي ومناسب للاستقبال
+        "name": "وردي ترابي هادئ",
+        "primary": "#C08A8A", "secondary": "#8A5A5C",
+        "bg_main": "#FAF4F3", "card_bg": "#FFFFFF",
+        "text_dark": "#2A1E1E", "text_muted": "#8A6E6E", "border": "#EBD9D7",
+        "header_grad_start": "#D8A8A5", "header_grad_end": "#6B3F41",
+        "accent_border": "#6B3F41",
+        "tab_active": "#FFFFFF", "tab_inactive": "#F1E2E0",
+    },
+    "olive_serenity": {
+        # أخضر زيتوني طبيعي هادئ - إحساس عضوي مختلف عن الأخضر الطبي البارد
+        "name": "أخضر زيتوني هادئ",
+        "primary": "#7A8B5A", "secondary": "#4C5A34",
+        "bg_main": "#F7F8F1", "card_bg": "#FFFFFF",
+        "text_dark": "#23291A", "text_muted": "#75795F", "border": "#E2E6D3",
+        "header_grad_start": "#94A66F", "header_grad_end": "#333E1F",
+        "accent_border": "#4C5A34",
+        "tab_active": "#FFFFFF", "tab_inactive": "#E8ECDB",
+    },
+    "indigo_night": {
+        # نيلي غامق عميق - هدوء الأزرق مع عمق البنفسجي
+        "name": "بنفسجي نيلي غامق",
+        "primary": "#5C6BC0", "secondary": "#303F9F",
+        "bg_main": "#F2F3FA", "card_bg": "#FFFFFF",
+        "text_dark": "#191C33", "text_muted": "#63688C", "border": "#DBDEF0",
+        "header_grad_start": "#7986CB", "header_grad_end": "#1A2455",
+        "accent_border": "#1A2455",
+        "tab_active": "#FFFFFF", "tab_inactive": "#E0E3F2",
+    },
+    "midnight_gold": {
+        # كحلي فاخر بحد ذهبي - لإحساس رسمي فخم في شاشات العرض
+        "name": "كحلي وذهبي فاخر",
+        "primary": "#3B4A63", "secondary": "#1B2436",
+        "bg_main": "#F2F4F8", "card_bg": "#FFFFFF",
+        "text_dark": "#171C26", "text_muted": "#66708A", "border": "#D8DEE9",
+        "header_grad_start": "#46587A", "header_grad_end": "#0F1522",
+        "accent_border": "#C9A24B",
+        "tab_active": "#FFFFFF", "tab_inactive": "#DFE4EC",
+    },
+
     # ---- دارك مود (خلفيات غامقة حقيقية للاستخدام الليلي) ----
     "dark_slate": {
         "name": "دارك مود - رمادي غامق",
