@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
+    QSizePolicy,
 )
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from PySide6.QtCore import Qt
@@ -18,6 +19,7 @@ from PySide6.QtCore import Qt
 import database as db
 from . import design
 from .components import StatCard, DataTable, SecondaryButton
+from .constants import status_key_to_label
 
 
 def _today_iso() -> str:
@@ -48,31 +50,30 @@ class DashboardPage(QWidget):
 
         # Page title
         title = QLabel("الرئيسية")
-        title.setStyleSheet(
-            f"font-size: {design.FONT_SIZE + 8}px; font-weight: bold; color: {design.TEXT_COLOR};"
-        )
+        title.setObjectName("PageTitle")
         root_layout.addWidget(title)
 
-        # Stat cards
+        # Stat cards (no "total patients" card - it is not a scheduling fact
+        # and puts the focus on what the receptionist acts on today).
         self.cards = {}
         stat_row = QHBoxLayout()
         stat_row.setSpacing(design.SPACING * 2)
 
         self.cards["today_appts"] = StatCard("مواعيد اليوم", "0")
-        self.cards["patients"] = StatCard("إجمالي المرضى", "0")
-        self.cards["today_revenue"] = StatCard("إيراد اليوم", "0")
+        self.cards["today_revenue"] = StatCard("إيراد اليوم", "0",
+                                               value_color=design.SUCCESS_COLOR)
         self.cards["upcoming"] = StatCard("مواعيد قادمة", "0")
 
         for card in self.cards.values():
+            card.setMinimumWidth(190)
+            card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             stat_row.addWidget(card)
 
         root_layout.addLayout(stat_row)
 
         # Today's appointments table
         today_section = QLabel("مواعيد اليوم")
-        today_section.setStyleSheet(
-            f"font-size: {design.FONT_SIZE + 4}px; font-weight: bold; color: {design.TEXT_COLOR};"
-        )
+        today_section.setObjectName("SectionTitle")
         root_layout.addWidget(today_section)
 
         self.today_table = DataTable()
@@ -83,9 +84,7 @@ class DashboardPage(QWidget):
 
         # Upcoming appointments table
         upcoming_section = QLabel("المواعيد القادمة")
-        upcoming_section.setStyleSheet(
-            f"font-size: {design.FONT_SIZE + 4}px; font-weight: bold; color: {design.TEXT_COLOR};"
-        )
+        upcoming_section.setObjectName("SectionTitle")
         root_layout.addWidget(upcoming_section)
 
         self.upcoming_table = DataTable()
@@ -107,7 +106,6 @@ class DashboardPage(QWidget):
 
         # --- Stat cards ------------------------------------------------
         today_appts = db.get_appointments(today)
-        all_patients = db.get_all_patients()
         financials = db.get_clinic_financials(today, today)
 
         all_appts = db.get_appointments()
@@ -115,7 +113,6 @@ class DashboardPage(QWidget):
         upcoming = sorted(upcoming, key=lambda a: (a.get("appt_date") or "", a.get("appt_time") or ""))[:20]
 
         self.cards["today_appts"].set_value(str(len(today_appts)))
-        self.cards["patients"].set_value(str(len(all_patients)))
         self.cards["today_revenue"].set_value(_currency(financials.get("revenue", 0)))
         self.cards["upcoming"].set_value(str(len(upcoming)))
 
@@ -133,8 +130,10 @@ class DashboardPage(QWidget):
             row.append(str(appt.get("appt_time") or ""))
             row.append(str(appt.get("full_name") or ""))
             row.append(str(appt.get("doctor_name") or ""))
-            row.append(str(appt.get("status") or ""))
+            row.append(status_key_to_label(appt.get("status")))
             items = [QStandardItem(v) for v in row]
+            for it in items:
+                it.setTextAlignment(Qt.AlignCenter)
             model.appendRow(items)
         model.setHorizontalHeaderLabels(
             ["التاريخ", "الوقت", "المريض", "الطبيب", "الحالة"]

@@ -21,6 +21,8 @@ from PySide6.QtCore import Qt
 
 import database as db
 import theme
+from . import design
+from .components import FieldLabel
 
 
 class LoginDialog(QDialog):
@@ -29,38 +31,49 @@ class LoginDialog(QDialog):
     - Shows a dropdown of active users (full name + role).
     - If the settings require a password, a password field is shown.
     - On successful authentication, ``self.user`` holds the user record.
+
+    Branding rule: "Dentora" is the *product* name; the running clinic's name
+    (from settings) is shown underneath it and never replaces it.
     """
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        settings = db.get_settings() or {}
         self.setWindowTitle("تسجيل الدخول - Dentora")
         self.setModal(True)
-        self.resize(380, 260)
+        self.resize(400, 280)
         # Use the Dentora icon if it exists
         icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "dentora_icon.png")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         self.user = None
-        self._build_ui()
+        self._clinic_name = str(settings.get("clinic_name") or "")
+        self._build_ui(settings)
 
-    def _build_ui(self):
+    def _build_ui(self, settings):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
 
-        # Header branding (minimal for now)
+        # Header branding - product badge (theme-colored via QSS#LoginBrand)
         header = QLabel("Dentora")
+        header.setObjectName("LoginBrand")
         header.setAlignment(Qt.AlignCenter)
-        header.setStyleSheet("font-size: 20px; font-weight: bold; color: #003366;")
         layout.addWidget(header)
 
-        settings = db.get_settings()
+        # Running clinic name (branding separation from the product name)
+        if self._clinic_name:
+            clinic = QLabel(self._clinic_name)
+            clinic.setObjectName("LoginClinic")
+            clinic.setAlignment(Qt.AlignCenter)
+            layout.addWidget(clinic)
+
         require_password = bool(settings.get("require_password", 1))
 
         # Populate active users
         users = [u for u in db.get_all_users() if u["active"]]
         if not users:
-            QMessageBox.critical(self, "خطأ", "لا يوجد مستخدمون مفعَّلون. راجع قاعدة البيانات.")
+            QMessageBox.critical(self, "خطأ", "لا يوجد مستخدمون مفعَّلون. راجع قاعدة البيانات.")
             self.reject()
             return
         self.user_map = {
@@ -75,9 +88,7 @@ class LoginDialog(QDialog):
                     default_user = name
                     break
 
-        user_label = QLabel("المستخدم")
-        user_label.setStyleSheet("font-weight: bold;")
-        layout.addWidget(user_label)
+        layout.addWidget(FieldLabel("المستخدم"))
         self.user_combo = QComboBox()
         self.user_combo.addItems(user_names)
         self.user_combo.setCurrentText(default_user)
@@ -86,18 +97,16 @@ class LoginDialog(QDialog):
         # Password field (optional)
         self.password_edit = None
         if require_password:
-            pw_label = QLabel("كلمة المرور")
-            pw_label.setStyleSheet("font-weight: bold;")
-            layout.addWidget(pw_label)
+            layout.addWidget(FieldLabel("كلمة المرور"))
             pw_row = QHBoxLayout()
             self.password_edit = QLineEdit()
             self.password_edit.setEchoMode(QLineEdit.Password)
-            self.password_edit.setPlaceholderText("******")
+            self.password_edit.setPlaceholderText("********")
             pw_row.addWidget(self.password_edit)
             # Show/hide eye button (simple without external icon)
             self.toggle_eye_btn = QPushButton("👁")
             self.toggle_eye_btn.setCheckable(True)
-            self.toggle_eye_btn.setFixedSize(24, 24)
+            self.toggle_eye_btn.setFixedSize(28, 28)
             self.toggle_eye_btn.setStyleSheet("border: none;")
             self.toggle_eye_btn.toggled.connect(self._toggle_password_visibility)
             pw_row.addWidget(self.toggle_eye_btn)

@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QSize
 
+import database as db
 import qtawesome as qta
 
 from . import design
@@ -33,23 +34,23 @@ from .patients_page import PatientsPage
 from .procedures_page import ProceduresPage
 from .staff_page import StaffPage
 from .settings_page import SettingsPage
-from .placeholder_pages import (
-    AccountsPage,
-    ExpensesPage,
-    IntegrationsPage,
-)
+from .expenses_page import ExpensesPage
+from .accounts_page import AccountsPage
+from .integrations_page import IntegrationsPage
+from .labs_page import LabsPage
 
 # Sidebar entries: (key, arabic label, qtawesome icon name)
 NAV_ITEMS = [
     ("dashboard", "الرئيسية", "fa5s.home"),
     ("appointments", "المواعيد", "fa5s.calendar-alt"),
     ("patients", "المرضى", "fa5s.user-injured"),
-    ("procedures", "الإجراءs الطبيa", "fa5s.tooth"),
-    ("staff", "طاقm العمل", "fa5s.users"),
-    ("accounts", "الحسabat", "fa5s.wallet"),
-    ("expenses", "المصr fت", "fa5s.shopping-basket"),
-    ("integrations", "التعكalat", "fa5s.plug"),
-    ("settings", "الإpدadat", "fa5s.cog"),
+    ("procedures", "الإجراءات الطبية", "fa5s.tooth"),
+    ("staff", "طاقم العمل", "fa5s.users"),
+    ("labs", "المعامل", "fa5s.flask"),
+    ("accounts", "الحسابات", "fa5s.wallet"),
+    ("expenses", "المصروفات", "fa5s.shopping-basket"),
+    ("integrations", "التكاملات", "fa5s.plug"),
+    ("settings", "الإعدادات", "fa5s.cog"),
 ]
 
 LOGOUT_ICON = "fa5s.sign-out-alt"
@@ -67,12 +68,25 @@ class MainWindow(QMainWindow):
     def __init__(self, user, parent=None):
         super().__init__(parent)
         self.user = user
-        self.setWindowTitle("Dentora")
+        self._clinic_name = str((db.get_settings() or {}).get("clinic_name") or "")
+        self._refresh_title()
         self.resize(1200, 800)
         icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "dentora_icon.png")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         self._init_ui()
+
+    def _refresh_title(self):
+        # Branding rule: the running clinic's name leads, the product name
+        # (Dentora) follows - so a clinic never looks like another's app.
+        base = f" — Dentora" if self._clinic_name else "Dentora"
+        self.setWindowTitle(f"{self._clinic_name}{base}")
+
+    def set_clinic_name(self, name: str):
+        name = str(name or "").strip()
+        if name != self._clinic_name:
+            self._clinic_name = name
+            self._refresh_title()
 
     def _init_ui(self):
         central = QWidget()
@@ -95,10 +109,17 @@ class MainWindow(QMainWindow):
         logo_label.setAlignment(Qt.AlignCenter)
         sidebar_layout.addWidget(logo_label)
 
+        # Clinic name (branding: product vs clinic are kept distinct)
+        clinic_label = QLabel(self._clinic_name or "")
+        clinic_label.setObjectName("sidebarClinic")
+        clinic_label.setAlignment(Qt.AlignCenter)
+        clinic_label.setWordWrap(True)
+        sidebar_layout.addWidget(clinic_label)
+
         # Small accent line under the logo
         accent_line = QFrame()
+        accent_line.setObjectName("AccentLine")
         accent_line.setFixedHeight(3)
-        accent_line.setStyleSheet(f"background-color: {design.ACCENT_400}; border: none; margin: 0 24px 8px 24px;")
         sidebar_layout.addWidget(accent_line)
 
         # Navigation buttons with flat icons
@@ -147,6 +168,7 @@ class MainWindow(QMainWindow):
             "patients": PatientsPage(),
             "procedures": ProceduresPage(),
             "staff": StaffPage(),
+            "labs": LabsPage(),
             "accounts": AccountsPage(),
             "expenses": ExpensesPage(),
             "integrations": IntegrationsPage(),
@@ -157,6 +179,26 @@ class MainWindow(QMainWindow):
 
         # Select default page (dashboard)
         self._select_page("dashboard")
+
+        # Keep dashboard live: refresh when returning to it. Guards against
+        # pages that do not define refresh().
+        self.stack.currentChanged.connect(self._on_page_changed)
+
+        # Allow settings to push the clinic name change back to the title bar.
+        settings_page = self.page_widgets.get("settings")
+        if settings_page:
+            settings_page.on_clinic_changed = self.set_clinic_name
+            settings_page.user_id = self.user.get("id")
+            settings_page.refresh()
+
+    def _on_page_changed(self, index):
+        """Refresh the displayed page only when it carries real clinic data."""
+        widget = self.stack.widget(index)
+        if hasattr(widget, "refresh"):
+            try:
+                widget.refresh()
+            except Exception:
+                pass
 
     def _on_nav_clicked(self):
         btn = self.sender()

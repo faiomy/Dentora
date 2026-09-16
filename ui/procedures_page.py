@@ -28,6 +28,7 @@ from .components import (
     PrimaryButton,
     SecondaryButton,
     TextInput,
+    FieldLabel,
 )
 
 
@@ -39,7 +40,8 @@ class NewPriceListDialog(QDialog):
         self.resize(360, 140)
         form = QFormLayout(self)
         self.name_edit = TextInput()
-        form.addRow("اسم القائمة", self.name_edit)
+        self.name_edit.textChanged.connect(lambda _: self.name_edit.set_error(False))
+        form.addRow(FieldLabel("اسم القائمة", required=True), self.name_edit)
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Save).setText("حفظ")
         buttons.button(QDialogButtonBox.Cancel).setText("إلغاء")
@@ -49,9 +51,12 @@ class NewPriceListDialog(QDialog):
 
     def _save(self):
         name = self.name_edit.text().strip()
-        if name:
-            db.add_price_list(name)
-            self.accept()
+        if not name:
+            self.name_edit.set_error(True)
+            self.name_edit.setFocus()
+            return
+        db.add_price_list(name)
+        self.accept()
 
 
 class TreatmentDialog(QDialog):
@@ -73,7 +78,8 @@ class TreatmentDialog(QDialog):
 
         self.label_edit = TextInput()
         self.label_edit.setText(str(self.existing_info.get("label") or ""))
-        form.addRow("الاسم", self.label_edit)
+        self.label_edit.textChanged.connect(lambda _: self.label_edit.set_error(False))
+        form.addRow(FieldLabel("الاسم", required=True), self.label_edit)
 
         self.price_spin = QDoubleSpinBox()
         self.price_spin.setRange(0, 10000000)
@@ -100,6 +106,8 @@ class TreatmentDialog(QDialog):
     def _save(self):
         label = self.label_edit.text().strip()
         if not label:
+            self.label_edit.set_error(True)
+            self.label_edit.setFocus()
             return
         key = self.existing_key or f"custom_{uuid.uuid4().hex[:8]}"
         price = self.price_spin.value()
@@ -177,6 +185,7 @@ class VariantsDialog(QDialog):
         form = QFormLayout(dlg)
         name_edit = TextInput()
         name_edit.setText(str(variant.get("variant_name") or "") if variant else "")
+        name_edit.textChanged.connect(lambda _: name_edit.set_error(False))
         price_spin = QDoubleSpinBox()
         price_spin.setRange(0, 10000000)
         price_spin.setDecimals(2)
@@ -198,6 +207,8 @@ class VariantsDialog(QDialog):
         def _save():
             nm = name_edit.text().strip()
             if not nm:
+                name_edit.set_error(True)
+                name_edit.setFocus()
                 return
             result["name"] = nm
             result["price"] = price_spin.value()
@@ -250,9 +261,7 @@ class ProceduresPage(QWidget):
         root_layout.setSpacing(design.SPACING * 2)
 
         title = QLabel("الإجراءات الطبية")
-        title.setStyleSheet(
-            f"font-size: {design.FONT_SIZE + 8}px; font-weight: bold; color: {design.TEXT_COLOR};"
-        )
+        title.setObjectName("PageTitle")
         root_layout.addWidget(title)
 
         # Price list controls
@@ -264,7 +273,7 @@ class ProceduresPage(QWidget):
         lists_row.addWidget(self.list_combo)
 
         self.active_badge = QLabel("")
-        self.active_badge.setStyleSheet(f"color: {design.SUCCESS_COLOR}; font-weight: bold;")
+        self.active_badge.setObjectName("SuccessLabel")
         lists_row.addWidget(self.active_badge)
 
         set_active_btn = SecondaryButton("تعيين كنشطة")

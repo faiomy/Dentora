@@ -43,6 +43,10 @@ class StaffPage(PlaceholderPage):
     def __init__(self, parent=None):
         super().__init__("طاقم العمل – Staff", parent)
 
+class LabsPage(PlaceholderPage):
+    def __init__(self, parent=None):
+        super().__init__("المعامل – Labs", parent)
+
 class AccountsPage(PlaceholderPage):
     def __init__(self, parent=None):
         super().__init__("الحسابات – Accounts", parent)

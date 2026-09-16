@@ -21,9 +21,11 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from ui import design
-from ui.stylesheet import build_global_stylesheet
+from ui.stylesheet import apply_ui_theme
 from ui.login_dialog import LoginDialog
 from ui.main_window import MainWindow
+
+import database as db
 
 
 def load_fonts():
@@ -62,8 +64,19 @@ def main():
     families = load_fonts()
     font_family = apply_font(app, families)
 
-    # ONE global stylesheet at the application level
-    app.setStyleSheet(build_global_stylesheet())
+    # Ensure the database schema exists (idempotent).
+    db.init_db()
+
+    # ONE global stylesheet at the application level, themed from the
+    # clinic-wide settings so the login screen already matches the brand.
+    settings = db.get_settings() or {}
+    apply_ui_theme(
+        settings.get("theme_id"),
+        dark=bool(settings.get("dark_mode")),
+        primary=settings.get("primary_color"),
+        secondary=settings.get("secondary_color"),
+        app=app,
+    )
 
     if "--print-font" in sys.argv:
         print(f"font family in use: {font_family} (loaded: {families})")
@@ -75,6 +88,16 @@ def main():
         if not user:
             QMessageBox.critical(None, "Error", "Login succeeded but no user data was returned.")
             sys.exit(1)
+        # Per-user appearance: merge the user's personal theme preferences
+        # (theme_id / dark_mode are clinic-wide; fonts may be personal).
+        effective = db.get_effective_settings(user["id"]) or {}
+        apply_ui_theme(
+            effective.get("theme_id"),
+            dark=bool(effective.get("dark_mode")),
+            primary=effective.get("primary_color"),
+            secondary=effective.get("secondary_color"),
+            app=app,
+        )
         main_win = MainWindow(user)
         main_win.show()
         sys.exit(app.exec())

@@ -14,7 +14,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QComboBox,
-    QTimeEdit,
     QSpinBox,
     QDialog,
     QDialogButtonBox,
@@ -22,16 +21,20 @@ from PySide6.QtWidgets import (
     QTextEdit,
 )
 from PySide6.QtGui import QStandardItemModel, QStandardItem
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QDate
 
 import database as db
-import theme
 from . import design
-from .components import DataTable, PrimaryButton, SecondaryButton, DateInput
-
-
-# Status key -> (Arabic label, color). Mirrors theme.APPOINTMENT_STATUSES.
-STATUSES = theme.APPOINTMENT_STATUSES
+from .components import (
+    DataTable,
+    PrimaryButton,
+    SecondaryButton,
+    DateInput,
+    TimeInput,
+    TimeSlotBar,
+    FieldLabel,
+)
+from .constants import STATUSES, status_key_to_label
 
 
 def _fmt_time(appt_time) -> str:
@@ -65,7 +68,8 @@ class AppointmentDialog(QDialog):
                 if p["id"] == pid:
                     self.patient_combo.setCurrentIndex(i)
                     break
-        form.addRow("المريض", self.patient_combo)
+        self.patient_combo.currentIndexChanged.connect(lambda _: self.patient_combo.set_error(False))
+        form.addRow(FieldLabel("المريض", required=True), self.patient_combo)
 
         # Doctor combo
         self.doctor_combo = QComboBox()
@@ -76,7 +80,7 @@ class AppointmentDialog(QDialog):
             idx = self.doctor_combo.findText(self.appointment["doctor_name"])
             if idx >= 0:
                 self.doctor_combo.setCurrentIndex(idx)
-        form.addRow("الطبيب", self.doctor_combo)
+        form.addRow(FieldLabel("الطبيب"), self.doctor_combo)
 
         # Date
         self.date_edit = DateInput()
@@ -86,24 +90,27 @@ class AppointmentDialog(QDialog):
             d = QDate.fromString(str(self.appointment["appt_date"]), "yyyy-MM-dd")
             if d.isValid():
                 self.date_edit.setDate(d)
-        form.addRow("التاريخ", self.date_edit)
+        form.addRow(FieldLabel("التاريخ"), self.date_edit)
 
-        # Time
-        self.time_edit = QTimeEdit()
-        self.time_edit.setDisplayFormat("HH:mm")
+        # Time (free entry via picker + quick-select slot chips for speed)
+        self.time_edit = TimeInput()
         if self.appointment and self.appointment.get("appt_time"):
             from PySide6.QtCore import QTime
             t = QTime.fromString(str(self.appointment["appt_time"]), "HH:mm")
             if t.isValid():
                 self.time_edit.setTime(t)
-        form.addRow("الوقت", self.time_edit)
+        form.addRow(FieldLabel("الوقت"), self.time_edit)
+        self.slot_bar = TimeSlotBar(self.time_edit)
+        if self.appointment and self.appointment.get("appt_time"):
+            self.slot_bar.select_slot(str(self.appointment["appt_time"]))
+        form.addRow("", self.slot_bar)
 
         # Duration
         self.duration_spin = QSpinBox()
         self.duration_spin.setRange(1, 600)
         self.duration_spin.setSuffix(" دقيقة")
         self.duration_spin.setValue(int(self.appointment.get("duration_minutes") or 30) if self.appointment else 30)
-        form.addRow("المدة", self.duration_spin)
+        form.addRow(FieldLabel("المدة"), self.duration_spin)
 
         # Status
         self.status_combo = QComboBox()
@@ -114,7 +121,7 @@ class AppointmentDialog(QDialog):
             key = self.appointment.get("status")
             if key in self._status_keys:
                 self.status_combo.setCurrentIndex(self._status_keys.index(key))
-        form.addRow("الحالة", self.status_combo)
+        form.addRow(FieldLabel("الحالة"), self.status_combo)
 
         # Notes
         self.notes_edit = QTextEdit()
@@ -122,7 +129,7 @@ class AppointmentDialog(QDialog):
         self.notes_edit.setMaximumHeight(90)
         if self.appointment and self.appointment.get("notes"):
             self.notes_edit.setPlainText(str(self.appointment["notes"]))
-        form.addRow("الملاحظات", self.notes_edit)
+        form.addRow(FieldLabel("الملاحظات"), self.notes_edit)
 
         # Buttons
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
@@ -135,6 +142,8 @@ class AppointmentDialog(QDialog):
     def _save(self):
         idx = self.patient_combo.currentIndex()
         if idx < 0 or idx >= len(self._patients):
+            self.patient_combo.set_error(True)
+            self.patient_combo.setFocus()
             return
         patient_id = self._patients[idx]["id"]
         appt_date = self.date_edit.date().toString("yyyy-MM-dd")
@@ -170,9 +179,7 @@ class AppointmentsPage(QWidget):
 
         # Title
         title = QLabel("المواعيد")
-        title.setStyleSheet(
-            f"font-size: {design.FONT_SIZE + 8}px; font-weight: bold; color: {design.TEXT_COLOR};"
-        )
+        title.setObjectName("PageTitle")
         root_layout.addWidget(title)
 
         # --- Controls row ------------------------------------------------
@@ -185,6 +192,8 @@ class AppointmentsPage(QWidget):
 
         self.date_edit = DateInput()
         self.date_edit.setDisplayFormat("yyyy-MM-dd")
+        self.date_edit.setDate(QDate(self.current_date.year, self.current_date.month,
+                                     self.current_date.day))
         self.date_edit.dateChanged.connect(self._on_date_changed)
         controls.addWidget(self.date_edit)
 
@@ -216,6 +225,7 @@ class AppointmentsPage(QWidget):
             ["الوقت", "المدة", "المريض", "الطبيب", "الحالة", "الملاحظات", "ID"]
         )
         self.table.setModel(self.model)
+        self.table.hide_columns(6)
         root_layout.addWidget(self.table, stretch=1)
 
         # --- Action buttons ----------------------------------------------
@@ -260,8 +270,7 @@ class AppointmentsPage(QWidget):
     # ------------------------------------------------------------------
     @staticmethod
     def _status_key_to_label(key):
-        info = STATUSES.get(key)
-        return info["label"] if info else str(key)
+        return status_key_to_label(key)
 
     def refresh(self):
         appt_date = self.current_date.isoformat()

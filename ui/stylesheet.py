@@ -48,6 +48,36 @@ QLabel#SectionTitle {{
     color: {d.PRIMARY_900};
     background: transparent;
 }}
+QLabel#FieldLabel {{
+    font-weight: 600;
+    color: {d.TEXT_SECONDARY};
+    background: transparent;
+}}
+QLabel#MutedLabel {{ color: {d.TEXT_MUTED}; background: transparent; }}
+QLabel#SuccessLabel {{ color: {d.SUCCESS_COLOR}; background: transparent; font-weight: 600; }}
+QLabel#DangerLabel {{ color: {d.ERROR_COLOR}; background: transparent; font-weight: 600; }}
+QLabel#StatTitle {{
+    color: {d.TEXT_SECONDARY};
+    background: transparent;
+    font-size: {d.FONT_SIZE_SM}pt;
+}}
+QLabel#StatValue {{
+    color: {d.PRIMARY_900};
+    background: transparent;
+    font-size: {d.FONT_SIZE_H2}pt;
+    font-weight: 600;
+}}
+QLabel#LoginBrand {{
+    font-size: {d.FONT_SIZE_H1 + 3}pt;
+    font-weight: 700;
+    color: {d.PRIMARY_900};
+    background: transparent;
+}}
+QLabel#LoginClinic {{
+    color: {d.TEXT_SECONDARY};
+    background: transparent;
+    font-size: {d.FONT_SIZE_BASE}pt;
+}}
 
 /* ============ cards ============ */
 QFrame#Card, QFrame#StatCard {{
@@ -96,6 +126,24 @@ QPushButton#SecondaryButton:hover {{
 QPushButton#SecondaryButton:pressed {{ background-color: {d.PRIMARY_100}; }}
 QPushButton#SecondaryButton:disabled {{ color: {d.TEXT_MUTED}; border: 1px solid {d.BORDER}; background: transparent; }}
 
+QPushButton#TimeChip {{
+    background-color: {d.PRIMARY_50};
+    color: {d.PRIMARY_600};
+    border: 1px solid {d.PRIMARY_100};
+    border-radius: {d.RADIUS_INPUT}px;
+    padding: {d.SPACING_XS + 2}px {d.SPACING_SM}px;
+    font-size: {d.FONT_SIZE_SM}pt;
+}}
+QPushButton#TimeChip:hover {{
+    background-color: {d.PRIMARY_100};
+    color: {d.PRIMARY_800};
+}}
+QPushButton#TimeChip:checked {{
+    background-color: {d.PRIMARY_600};
+    color: #FFFFFF;
+    border: 1px solid {d.PRIMARY_600};
+}}
+
 QPushButton#DangerButton {{
     background-color: {d.ERROR_400};
     color: #FFFFFF;
@@ -127,6 +175,11 @@ QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabl
     background-color: {d.BACKGROUND};
     color: {d.TEXT_MUTED};
     border: 1px solid {d.BORDER};
+}}
+QLineEdit[error="true"], QComboBox[error="true"], QDateEdit[error="true"],
+QTimeEdit[error="true"], QSpinBox[error="true"], QDoubleSpinBox[error="true"] {{
+    border: 1px solid {d.ERROR_400};
+    background-color: {d.ERROR_50};
 }}
 QLineEdit[echoMode="2"] {{ font-weight: 600; letter-spacing: 2px; }}
 
@@ -317,6 +370,17 @@ QWidget#sidebar QLabel#sidebarUser {{
     padding: {d.SPACING_SM}px;
     background: transparent;
 }}
+QWidget#sidebar QLabel#sidebarClinic {{
+    color: {d.PRIMARY_100};
+    font-size: {d.FONT_SIZE_SM}pt;
+    padding: 0px {d.SPACING_MD}px {d.SPACING_SM}px;
+    background: transparent;
+}}
+QWidget#sidebar QFrame#AccentLine {{
+    background-color: {d.ACCENT_400};
+    border: none;
+    margin: 0px 24px {d.SPACING_SM}px 24px;
+}}
 QWidget#sidebar QPushButton#NavButton {{
     background-color: transparent;
     color: {d.PRIMARY_100};
@@ -370,3 +434,16 @@ QListWidget#SettingsCategories::item:selected {{
 }}
 """
     return qss
+
+
+def apply_ui_theme(theme_id=None, dark=False, primary=None, secondary=None, app=None):
+    """Apply a theme preset (plus optional dark mode / custom brand colors) and
+    rebuild the single global stylesheet on *app* if it is provided.
+
+    Everything that is styled through the global QSS (all objectName-driven
+    components) repaints instantly; page code should avoid baking colors into
+    inline styles so runtime theme switches work uniformly.
+    """
+    design.apply_theme(theme_id, dark=dark, primary=primary, secondary=secondary)
+    if app is not None:
+        app.setStyleSheet(build_global_stylesheet())

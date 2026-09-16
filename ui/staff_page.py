@@ -21,11 +21,13 @@ from PySide6.QtCore import Qt
 
 import database as db
 from . import design
+from .constants import ltr
 from .components import (
     DataTable,
     PrimaryButton,
     SecondaryButton,
     TextInput,
+    FieldLabel,
 )
 
 ROLE_LABELS = {"manager": "مدير", "doctor": "طبيب", "secretary": "سكرتارية"}
@@ -51,28 +53,31 @@ class UserDialog(QDialog):
         self.username_edit = TextInput()
         self.username_edit.setText(str(u.get("username") or ""))
         self.username_edit.setEnabled(not self.user)  # username changeable only on add
-        form.addRow("اسم المستخدم", self.username_edit)
+        self.username_edit.textChanged.connect(lambda _: self.username_edit.set_error(False))
+        form.addRow(FieldLabel("اسم المستخدم", required=not self.user), self.username_edit)
 
         self.password_edit = TextInput(placeholder="كلمة المرور")
         self.password_edit.setEchoMode(QLineEdit.Password)
         if not self.user:
-            form.addRow("كلمة المرور", self.password_edit)
+            self.password_edit.textChanged.connect(lambda _: self.password_edit.set_error(False))
+            form.addRow(FieldLabel("كلمة المرور", required=True), self.password_edit)
 
         self.fullname_edit = TextInput()
         self.fullname_edit.setText(str(u.get("full_name") or ""))
-        form.addRow("الاسم الكامل", self.fullname_edit)
+        self.fullname_edit.textChanged.connect(lambda _: self.fullname_edit.set_error(False))
+        form.addRow(FieldLabel("الاسم الكامل", required=True), self.fullname_edit)
 
         self.phone_edit = TextInput(placeholder="الهاتف")
         self.phone_edit.setText(str(u.get("phone") or ""))
-        form.addRow("الهاتف", self.phone_edit)
+        form.addRow(FieldLabel("الهاتف"), self.phone_edit)
 
         self.specialty_edit = TextInput(placeholder="التخصص")
         self.specialty_edit.setText(str(u.get("specialty") or ""))
-        form.addRow("التخصص", self.specialty_edit)
+        form.addRow(FieldLabel("التخصص"), self.specialty_edit)
 
         # Read-only role label
         role_label = QLabel(ROLE_LABELS.get(self.role, self.role))
-        form.addRow("الدور", role_label)
+        form.addRow(FieldLabel("الدور"), role_label)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Save).setText("حفظ")
@@ -84,7 +89,14 @@ class UserDialog(QDialog):
     def _save(self):
         username = self.username_edit.text().strip()
         full_name = self.fullname_edit.text().strip()
+        errors = False
         if not full_name:
+            self.fullname_edit.set_error(True)
+            errors = True
+        if not self.user and not username:
+            self.username_edit.set_error(True)
+            errors = True
+        if errors:
             return
         phone = self.phone_edit.text().strip()
         specialty = self.specialty_edit.text().strip()
@@ -92,7 +104,8 @@ class UserDialog(QDialog):
             db.update_user(self.user["id"], full_name=full_name, phone=phone, specialty=specialty)
         else:
             password = self.password_edit.text().strip()
-            if not username or not password:
+            if not password:
+                self.password_edit.set_error(True)
                 return
             db.add_user(username, password, full_name, self.role, phone=phone, specialty=specialty)
         self.accept()
@@ -265,7 +278,7 @@ class SupportTab(_StaffTab):
         for s in self.rows:
             self.model.appendRow([
                 QStandardItem(str(s.get("full_name") or "")),
-                QStandardItem(str(s.get("phone") or "")),
+                QStandardItem(ltr(str(s.get("phone") or ""))),
                 QStandardItem(str(s.get("specialty") or "")),
                 QStandardItem(str(s.get("notes") or "")),
             ])
@@ -306,9 +319,7 @@ class StaffPage(QWidget):
         root_layout.setSpacing(design.SPACING * 2)
 
         title = QLabel("طاقم العمل")
-        title.setStyleSheet(
-            f"font-size: {design.FONT_SIZE + 8}px; font-weight: bold; color: {design.TEXT_COLOR};"
-        )
+        title.setObjectName("PageTitle")
         root_layout.addWidget(title)
 
         self.tabs = QTabWidget()

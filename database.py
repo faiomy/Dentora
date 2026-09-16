@@ -153,6 +153,8 @@ def init_db():
         "show_ribbon_labels": "INTEGER NOT NULL DEFAULT 1",
         # ---- الثيم الجاهز المختار (لوحة ألوان كاملة) - راجع THEME_PRESETS في theme.py ----
         "theme_id": "TEXT NOT NULL DEFAULT 'ocean_blue'",
+        # ---- الوضع الداكن (على مستوى العيادة - بيلوّن كل البرنامج) ----
+        "dark_mode": "INTEGER NOT NULL DEFAULT 0",
         # ---- شكل تصميم أزرار الشريط العلوي الرئيسي: classic / glass / luxury ----
         "nav_button_style": "TEXT NOT NULL DEFAULT 'classic'",
         # ---- نمط رسم أيقونات الشريط العلوي الرئيسية (شكل الرسمة نفسها،
@@ -996,7 +998,7 @@ def set_setting_value(column_name, value):
         "weekly_holidays", "schedule_start_hour", "schedule_end_hour",
         "clinic_address", "tax_card_number", "remember_login", "remembered_username",
         "remembered_password", "show_ribbon_labels",
-        "theme_id", "nav_button_style", "icon_pattern",
+        "theme_id", "nav_button_style", "icon_pattern", "dark_mode",
         "financial_reset_v2_done", "expenses_reset_v1_done",
     }
     if column_name not in _KNOWN_SETTINGS_COLUMNS:
