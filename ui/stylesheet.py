@@ -401,6 +401,10 @@ QWidget#sidebar QPushButton#NavButton:checked {{
     border-right: 3px solid {d.ACCENT_400};
     padding-right: {d.SPACING_MD + 1}px;
 }}
+QWidget#sidebar QPushButton#NavButton:disabled {{
+    color: {d.TEXT_MUTED};
+    background-color: transparent;
+}}
 QWidget#sidebar QPushButton#LogoutButton {{
     background-color: transparent;
     color: {d.ACCENT_100};

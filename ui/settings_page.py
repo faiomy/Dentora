@@ -162,13 +162,21 @@ class SettingsPage(QWidget):
         super().__init__(parent)
         self.settings = db.get_settings()
         self.user_id = None          # assigned by MainWindow when available
+        self.user_role = None        # assigned by MainWindow (manager gating)
         self.on_clinic_changed = None  # callback(clinic_name) for the title bar
         self._build_ui()
         self._refresh_clinic()
         self._refresh_appearance()
-        self._refresh_schedule()
-        self._refresh_users()
-        self._refresh_users_table()
+        if self._is_manager:
+            self._refresh_schedule()
+            self._refresh_users()
+            self._refresh_users_table()
+
+    @property
+    def _is_manager(self):
+        # No role info (e.g. bare construction before MainWindow wiring)
+        # keeps the full manager view.
+        return self.user_role is None or self.user_role == "manager"
 
     # ------------------------------------------------------------------
     def _build_ui(self):
@@ -182,9 +190,6 @@ class SettingsPage(QWidget):
         self.category_list.setObjectName("SettingsCategories")
         self.category_list.setFixedWidth(200)
         self.settings = self.settings or {}
-        categories = ["بيانات العيادة", "المظهر", "المواعيد والإجازات", "الأمان", "المستخدمون"]
-        for c in categories:
-            self.category_list.addItem(c)
         self.category_list.currentRowChanged.connect(self._switch_category)
         root_layout.addWidget(self.category_list)
 
@@ -194,15 +199,41 @@ class SettingsPage(QWidget):
 
         self.clinic_panel = self._build_clinic_panel()
         self.appearance_panel = self._build_appearance_panel()
+        # Manager-only panels are built unconditionally so the layout can be
+        # rewired when the role becomes known (MainWindow wires it after the
+        # page is constructed). They are only reachable for managers.
         self.schedule_panel = self._build_schedule_panel()
         self.security_panel = self._build_security_panel()
         self.users_panel = self._build_users_panel()
 
+        self._apply_role_layout()
+
+    def _apply_role_layout(self):
+        """Wire categories + stack entries according to the current role.
+        Mirrors main.py, where only managers see schedule/security/users.
+        Layout is only rebuilt when the manager state actually changes, so
+        switching pages does not reset the selected category."""
+        is_manager = self._is_manager
+        if getattr(self, "_layout_is_manager", None) == is_manager and self.stack.count():
+            return
+        self._layout_is_manager = is_manager
+
+        self.category_list.clear()
+        while self.stack.count():
+            self.stack.removeWidget(self.stack.widget(0))
+
+        categories = ["بيانات العيادة", "المظهر"]
+        if is_manager:
+            categories += ["المواعيد والإجازات", "الأمان", "المستخدمون"]
+        for c in categories:
+            self.category_list.addItem(c)
+
         self.stack.addWidget(self.clinic_panel)
         self.stack.addWidget(self.appearance_panel)
-        self.stack.addWidget(self.schedule_panel)
-        self.stack.addWidget(self.security_panel)
-        self.stack.addWidget(self.users_panel)
+        if is_manager:
+            self.stack.addWidget(self.schedule_panel)
+            self.stack.addWidget(self.security_panel)
+            self.stack.addWidget(self.users_panel)
 
         self.category_list.setCurrentRow(0)
 
@@ -645,8 +676,10 @@ class SettingsPage(QWidget):
     # ------------------------------------------------------------------
     def refresh(self):
         self.settings = db.get_settings()
+        self._apply_role_layout()
         self._refresh_clinic()
         self._refresh_appearance()
-        self._refresh_schedule()
-        self._refresh_users()
-        self._refresh_users_table()
+        if self._is_manager:
+            self._refresh_schedule()
+            self._refresh_users()
+            self._refresh_users_table()

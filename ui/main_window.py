@@ -39,19 +39,21 @@ from .accounts_page import AccountsPage
 from .integrations_page import IntegrationsPage
 from .labs_page import LabsPage
 
-# Sidebar entries: (key, arabic label, qtawesome icon name)
+# Sidebar entries: (key, arabic label, qtawesome icon name, permission key)
 NAV_ITEMS = [
-    ("dashboard", "الرئيسية", "fa5s.home"),
-    ("appointments", "المواعيد", "fa5s.calendar-alt"),
-    ("patients", "المرضى", "fa5s.user-injured"),
-    ("procedures", "الإجراءات الطبية", "fa5s.tooth"),
-    ("staff", "طاقم العمل", "fa5s.users"),
-    ("labs", "المعامل", "fa5s.flask"),
-    ("accounts", "الحسابات", "fa5s.wallet"),
-    ("expenses", "المصروفات", "fa5s.shopping-basket"),
-    ("integrations", "التكاملات", "fa5s.plug"),
-    ("settings", "الإعدادات", "fa5s.cog"),
+    ("dashboard", "الرئيسية", "fa5s.home", None),
+    ("appointments", "المواعيد", "fa5s.calendar-alt", "view_appointments"),
+    ("patients", "المرضى", "fa5s.user-injured", "view_patients"),
+    ("procedures", "الإجراءات الطبية", "fa5s.tooth", "manage_prices"),
+    ("staff", "طاقم العمل", "fa5s.users", "manage_staff"),
+    ("labs", "المعامل", "fa5s.flask", "manage_labs"),
+    ("accounts", "الحسابات", "fa5s.wallet", "view_clinic_accounts"),
+    ("expenses", "المصروفات", "fa5s.shopping-basket", "manage_expenses"),
+    ("integrations", "التكاملات", "fa5s.plug", "always"),
+    ("settings", "الإعدادات", "fa5s.cog", "always"),
 ]
+
+NAV_PERMISSIONS = {key: perm for key, _, _, perm in NAV_ITEMS}
 
 LOGOUT_ICON = "fa5s.sign-out-alt"
 
@@ -95,6 +97,7 @@ class MainWindow(QMainWindow):
         layout = QHBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+        self._permissions = db.get_role_permissions(self.user.get("role") or "")
 
         # ---- Sidebar (first child = right side under RTL) -----------------
         sidebar = QWidget()
@@ -126,7 +129,7 @@ class MainWindow(QMainWindow):
         self.button_group = QButtonGroup(self)
         self.button_group.setExclusive(True)
         icon_color = design.PRIMARY_100
-        for key, label, icon_name in NAV_ITEMS:
+        for key, label, icon_name, permission in NAV_ITEMS:
             btn = QPushButton(f"  {label}")
             btn.setCheckable(True)
             btn.setObjectName("NavButton")
@@ -134,6 +137,7 @@ class MainWindow(QMainWindow):
             btn.setIcon(qta.icon(icon_name, color=icon_color))
             btn.setIconSize(QSize(16, 16))
             btn.clicked.connect(self._on_nav_clicked)
+            btn.setEnabled(self._can_access(permission))
             self.button_group.addButton(btn)
             btn.setFixedHeight(46)
             sidebar_layout.addWidget(btn)
@@ -189,6 +193,7 @@ class MainWindow(QMainWindow):
         if settings_page:
             settings_page.on_clinic_changed = self.set_clinic_name
             settings_page.user_id = self.user.get("id")
+            settings_page.user_role = self.user.get("role")
             settings_page.refresh()
 
     def _on_page_changed(self, index):
@@ -207,6 +212,8 @@ class MainWindow(QMainWindow):
             self._select_page(key)
 
     def _select_page(self, key: str):
+        if not self._can_access(NAV_PERMISSIONS.get(key)):
+            return
         widget = self.page_widgets.get(key)
         if widget:
             self.stack.setCurrentWidget(widget)
@@ -216,3 +223,12 @@ class MainWindow(QMainWindow):
     def _logout(self):
         # Close this window - the calling script will re-show the login dialog
         self.close()
+
+    def _can_access(self, permission_key):
+        """Mirrors main.py._can_access: managers bypass the matrix, while
+        None/"always" permissions are always allowed for every role."""
+        if not permission_key or permission_key == "always":
+            return True
+        if (self.user.get("role") or "") == "manager":
+            return True
+        return bool(self._permissions.get(permission_key))
