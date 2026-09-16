@@ -211,6 +211,9 @@ class _StaffTab(QWidget):
     def refresh(self):
         raise NotImplementedError
 
+    _stretch_col = 0
+    _exclude_cols = ()
+
     def _selected(self):
         index = self.table.currentIndex()
         if not index.isValid():
@@ -223,11 +226,13 @@ class _StaffTab(QWidget):
     def _set_headers(self, headers):
         self.model.setHorizontalHeaderLabels(headers)
         self.model.removeRows(0, self.model.rowCount())
+        self.table.configure_columns(stretch=self._stretch_col, exclude_center=self._exclude_cols)
 
 
 class UsersTab(_StaffTab):
     def __init__(self, role, parent=None):
         self.role = role
+        self._stretch_col = 1
         super().__init__(parent)
         self._set_headers(["اسم المستخدم", "الاسم الكامل", "التخصص", "نشط"])
 
@@ -269,6 +274,7 @@ class UsersTab(_StaffTab):
 class SupportTab(_StaffTab):
     def __init__(self, staff_type, parent=None):
         self.staff_type = staff_type
+        self._exclude_cols = (3,)
         super().__init__(parent)
         self._set_headers(["الاسم الكامل", "الهاتف", "التخصص", "ملاحظات"])
 

@@ -72,7 +72,6 @@ def main():
     settings = db.get_settings() or {}
     apply_ui_theme(
         settings.get("theme_id"),
-        dark=bool(settings.get("dark_mode")),
         primary=settings.get("primary_color"),
         secondary=settings.get("secondary_color"),
         app=app,
@@ -89,11 +88,10 @@ def main():
             QMessageBox.critical(None, "Error", "Login succeeded but no user data was returned.")
             sys.exit(1)
         # Per-user appearance: merge the user's personal theme preferences
-        # (theme_id / dark_mode are clinic-wide; fonts may be personal).
+        # (theme_id is clinic-wide; fonts may be personal).
         effective = db.get_effective_settings(user["id"]) or {}
         apply_ui_theme(
             effective.get("theme_id"),
-            dark=bool(effective.get("dark_mode")),
             primary=effective.get("primary_color"),
             secondary=effective.get("secondary_color"),
             app=app,

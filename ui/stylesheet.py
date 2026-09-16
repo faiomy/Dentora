@@ -235,7 +235,8 @@ QTableWidget, QTableView {{
     font-family: "{d.FONT_FAMILY}";
     font-size: {d.FONT_SIZE_BASE}pt;
 }}
-QTableWidget::item, QTableView::item {{ padding: 6px; border: none; }}
+QTableWidget::item, QTableView::item {{ padding: 6px; border: none;
+    border-bottom: 1px solid {d.BORDER}; }}
 QTableWidget::item:selected, QTableView::item:selected {{ background-color: {d.PRIMARY_100}; }}
 QHeaderView::section {{
     background-color: {d.BACKGROUND};

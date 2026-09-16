@@ -100,6 +100,7 @@ class AccountsPage(QWidget):
         self.category_model = QStandardItemModel()
         self.category_model.setHorizontalHeaderLabels(["الفئة", "الإجمالي"])
         self.category_table.setModel(self.category_model)
+        self.category_table.configure_columns(stretch=0)
         root_layout.addWidget(self.category_table)
 
         # --- Doctor commissions -----------------------------------------
@@ -109,6 +110,7 @@ class AccountsPage(QWidget):
         self.commission_model.setHorizontalHeaderLabels(
             ["الطبيب", "عدد الإجراءات", "إجمالي العمولة"])
         self.commission_table.setModel(self.commission_model)
+        self.commission_table.configure_columns(stretch=0)
         root_layout.addWidget(self.commission_table, stretch=1)
 
     @staticmethod

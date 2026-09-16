@@ -135,6 +135,7 @@ class IntegrationsPage(QWidget):
         self.log_model.setHorizontalHeaderLabels(
             ["الحالة", "الرقم", "الرسالة", "المحاولات", "الخطأ"])
         self.log_table.setModel(self.log_model)
+        self.log_table.configure_columns(stretch=2, exclude_center=(2, 4))
         log_body.addWidget(self.log_table)
 
         root_layout.addWidget(log_card, stretch=1)
@@ -155,12 +156,18 @@ class IntegrationsPage(QWidget):
 
             status_item = QStandardItem(label)
             status_item.setForeground(QColor(color))
+            message_item = QStandardItem(str(r.get("message") or ""))
+            message_item.setToolTip(message_item.text())
+            message_item.setText(message_item.text()[:120])
+            error_item = QStandardItem(str(r.get("error") or ""))
+            error_item.setToolTip(error_item.text() if error_item.text() else None)
+            error_item.setText(error_item.text()[:80])
             row_items = [
                 status_item,
                 QStandardItem(str(r.get("phone") or "")),
-                QStandardItem(str(r.get("message") or "")[:120]),
+                message_item,
                 QStandardItem(attempts),
-                QStandardItem(str(r.get("error") or "")[:80]),
+                error_item,
             ]
             self.log_model.appendRow(row_items)
         self.log_model.setProperty("log_rows", rows)

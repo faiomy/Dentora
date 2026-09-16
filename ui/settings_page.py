@@ -328,7 +328,7 @@ class SettingsPage(QWidget):
             self._refresh_phones()
 
     # ------------------------------------------------------------------
-    # Appearance (theme / brand color / dark mode) - applies immediately
+    # Appearance (theme / brand color) - applies immediately
     # ------------------------------------------------------------------
     def _build_appearance_panel(self):
         panel = QWidget()
@@ -353,11 +353,6 @@ class SettingsPage(QWidget):
         hint = QLabel("اختيار الثيم يُطبَّق فورًا")
         hint.setObjectName("MutedLabel")
         layout.addWidget(hint)
-
-        layout.addWidget(FieldLabel("الوضع الداكن"))
-        self.dark_cb = QCheckBox("تفعيل الوضع الداكن")
-        self.dark_cb.toggled.connect(self._on_dark_toggled)
-        layout.addWidget(self.dark_cb)
 
         layout.addWidget(FieldLabel("لون العلامة التجارية"))
         brand_row = QHBoxLayout()
@@ -389,10 +384,6 @@ class SettingsPage(QWidget):
         eff = self._effective()
         theme_id = eff.get("theme_id") or theme.DEFAULT_THEME_ID
         preset = theme.THEME_PRESETS.get(theme_id, {})
-        dark = bool(eff.get("dark_mode"))
-        self.dark_cb.blockSignals(True)
-        self.dark_cb.setChecked(dark)
-        self.dark_cb.blockSignals(False)
         idx = self._theme_ids.index(theme_id) if theme_id in self._theme_ids else 0
         self.theme_combo.blockSignals(True)
         self.theme_combo.setCurrentIndex(idx)
@@ -411,7 +402,7 @@ class SettingsPage(QWidget):
         eff = self._effective()
         from .stylesheet import apply_ui_theme
         app = QApplication.instance()
-        apply_ui_theme(eff.get("theme_id"), dark=bool(eff.get("dark_mode")),
+        apply_ui_theme(eff.get("theme_id"),
                        primary=eff.get("primary_color"),
                        secondary=eff.get("secondary_color"),
                        app=app)
@@ -428,10 +419,6 @@ class SettingsPage(QWidget):
             db.set_theme(theme_id)
         preset = theme.THEME_PRESETS.get(theme_id, {})
         self._set_swatch(self.theme_swatch, preset.get("primary", design.PRIMARY_400))
-        self._apply_appearance()
-
-    def _on_dark_toggled(self, checked):
-        db.set_setting_value("dark_mode", 1 if checked else 0)
         self._apply_appearance()
 
     def _pick_brand_color(self):
@@ -613,6 +600,7 @@ class SettingsPage(QWidget):
         self.users_model.setHorizontalHeaderLabels(
             ["اسم المستخدم", "الاسم الكامل", "الدور", "نشط"])
         self.users_table.setModel(self.users_model)
+        self.users_table.configure_columns(stretch=1)
         layout.addWidget(self.users_table, stretch=1)
 
         actions = QHBoxLayout()

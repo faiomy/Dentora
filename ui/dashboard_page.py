@@ -80,6 +80,7 @@ class DashboardPage(QWidget):
         self.today_model = QStandardItemModel()
         self.today_model.setHorizontalHeaderLabels(["الوقت", "المريض", "الطبيب", "الحالة"])
         self.today_table.setModel(self.today_model)
+        self.today_table.configure_columns(stretch=1)
         root_layout.addWidget(self.today_table, stretch=3)
 
         # Upcoming appointments table
@@ -93,6 +94,7 @@ class DashboardPage(QWidget):
             ["التاريخ", "الوقت", "المريض", "الطبيب", "الحالة"]
         )
         self.upcoming_table.setModel(self.upcoming_model)
+        self.upcoming_table.configure_columns(stretch=2)
         root_layout.addWidget(self.upcoming_table, stretch=3)
 
         # Refresh button
@@ -132,8 +134,6 @@ class DashboardPage(QWidget):
             row.append(str(appt.get("doctor_name") or ""))
             row.append(status_key_to_label(appt.get("status")))
             items = [QStandardItem(v) for v in row]
-            for it in items:
-                it.setTextAlignment(Qt.AlignCenter)
             model.appendRow(items)
         model.setHorizontalHeaderLabels(
             ["التاريخ", "الوقت", "المريض", "الطبيب", "الحالة"]

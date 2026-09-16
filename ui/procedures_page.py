@@ -137,6 +137,8 @@ class VariantsDialog(QDialog):
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels(["الاسم", "السعر", "العمولة", "ID"])
         self.table.setModel(self.model)
+        self.table.hide_columns(3)
+        self.table.configure_columns(stretch=0)
         layout.addWidget(self.table, stretch=1)
 
         buttons_row = QHBoxLayout()
@@ -296,6 +298,7 @@ class ProceduresPage(QWidget):
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels(["الاسم", "السعر", "العمولة", "الأنواع الفرعية"])
         self.table.setModel(self.model)
+        self.table.configure_columns(stretch=0)
         root_layout.addWidget(self.table, stretch=1)
 
         # Actions

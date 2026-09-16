@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QPushButton,
     QButtonGroup,
+    QDoubleSpinBox,
 )
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from PySide6.QtCore import Qt, QDate
@@ -57,8 +58,10 @@ class ExpenseDialog(QDialog):
         self.item_edit = TextInput(placeholder="اسم البند")
         form.addRow("اسم البند", self.item_edit)
 
-        self.amount_edit = TextInput(placeholder="0.00")
-        self.amount_edit.setAlignment(Qt.AlignRight)
+        self.amount_edit = QDoubleSpinBox()
+        self.amount_edit.setRange(0, 999999999)
+        self.amount_edit.setDecimals(2)
+        self.amount_edit.setSuffix(" جنيه")
         form.addRow("المبلغ", self.amount_edit)
 
         self.date_edit = DateInput()
@@ -79,12 +82,8 @@ class ExpenseDialog(QDialog):
 
     def _save(self):
         item_name = self.item_edit.text().strip()
-        amount_text = self.amount_edit.text().strip()
-        if not item_name or not amount_text:
-            return
-        try:
-            amount = float(amount_text)
-        except ValueError:
+        amount = self.amount_edit.value()
+        if not item_name:
             return
         if amount <= 0:
             return
@@ -144,6 +143,7 @@ class ExpensesPage(QWidget):
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels(["التاريخ", "الفئة", "البند", "المبلغ", "ملاحظات"])
         self.table.setModel(self.model)
+        self.table.configure_columns(stretch=2, exclude_center=(4,))
         root_layout.addWidget(self.table, stretch=1)
 
         # --- Actions ----------------------------------------------------

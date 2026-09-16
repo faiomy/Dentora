@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QScrollArea,
     QTabWidget,
+    QDoubleSpinBox,
 )
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QColor
 from PySide6.QtCore import Qt, QDate
@@ -110,9 +111,8 @@ class LabOrderDialog(QDialog):
         active_labs = db.get_labs(active_only=True)
         self.labs = active_labs if active_labs else db.get_labs()
 
-        # Patient
+        # Patient (dropdown of actual patients; legacy free-text names kept)
         self.patient_combo = ComboBox()
-        self.patient_combo.setEditable(True)
         patients = db.get_all_patients()
         self.patients = patients
         self.patient_combo.addItem("-- بدون تحديد --", None)
@@ -123,7 +123,12 @@ class LabOrderDialog(QDialog):
             if idx >= 0:
                 self.patient_combo.setCurrentIndex(idx)
         elif o.get("patient_name"):
-            self.patient_combo.setCurrentText(o["patient_name"])
+            idx = self.patient_combo.findText(o["patient_name"])
+            if idx >= 0:
+                self.patient_combo.setCurrentIndex(idx)
+            else:
+                self.patient_combo.addItem(o["patient_name"], None)
+                self.patient_combo.setCurrentIndex(self.patient_combo.count() - 1)
         form.addRow("المريض (اختياري)", self.patient_combo)
 
         # Treatment / tooth
@@ -189,8 +194,14 @@ class LabOrderDialog(QDialog):
         form.addRow("التاريخ المتوقع للتسليم", self.expected_date_edit)
 
         # Cost / notes
-        self.cost_edit = TextInput(placeholder="0")
-        self.cost_edit.setText(str(o.get("cost") or "0"))
+        self.cost_edit = QDoubleSpinBox()
+        self.cost_edit.setRange(0, 999999999)
+        self.cost_edit.setDecimals(2)
+        self.cost_edit.setSuffix(" جنيه")
+        try:
+            self.cost_edit.setValue(float(o.get("cost") or 0))
+        except (TypeError, ValueError):
+            self.cost_edit.setValue(0)
         form.addRow("تكلفة المعمل (جنيه)", self.cost_edit)
 
         self.notes_edit = QTextEdit()
@@ -222,10 +233,7 @@ class LabOrderDialog(QDialog):
             tooth_number = int(tooth_text) if tooth_text else None
         except ValueError:
             tooth_number = None
-        try:
-            cost = float(self.cost_edit.text().strip() or 0)
-        except ValueError:
-            cost = 0
+        cost = self.cost_edit.value()
         idx = self.lab_combo.currentIndex()
         lab_id = self.labs[idx]["id"] if 0 <= idx < len(self.labs) else None
         sender = self.sender_combo.currentText()
@@ -336,7 +344,10 @@ class LabPaymentDialog(QDialog):
         form.setSpacing(10)
         form.addRow("المعمل", QLabel(lab["name"] if lab else ""))
 
-        self.amount_edit = TextInput(placeholder="0.00")
+        self.amount_edit = QDoubleSpinBox()
+        self.amount_edit.setRange(0, 999999999)
+        self.amount_edit.setDecimals(2)
+        self.amount_edit.setSuffix(" جنيه")
         form.addRow("المبلغ المدفوع (جنيه)", self.amount_edit)
 
         self.date_edit = DateInput()
@@ -356,10 +367,7 @@ class LabPaymentDialog(QDialog):
         form.addRow(buttons)
 
     def _save(self):
-        try:
-            amount = float(self.amount_edit.text().strip())
-        except ValueError:
-            return
+        amount = self.amount_edit.value()
         if amount <= 0:
             return
         db.add_lab_transaction(self.lab_id, "payment", amount,
@@ -446,6 +454,8 @@ class LabsPage(QWidget):
         self.orders_model.setHorizontalHeaderLabels(
             ["الحالة", "البند", "المريض", "المعمل", "الرمز", "تاريخ الإرسال", "التكلفة", "ID"])
         self.orders_table.setModel(self.orders_model)
+        self.orders_table.hide_columns(7)
+        self.orders_table.configure_columns(stretch=1, exclude_center=(1,))
         layout.addWidget(self.orders_table, stretch=1)
 
         actions = QHBoxLayout()
@@ -581,6 +591,8 @@ class LabsPage(QWidget):
         self.labs_model.setHorizontalHeaderLabels(
             ["الاسم", "التليفون", "المسؤول", "العنوان", "نشط", "ID"])
         self.labs_table.setModel(self.labs_model)
+        self.labs_table.hide_columns(5)
+        self.labs_table.configure_columns(stretch=0, exclude_center=(3,))
         layout.addWidget(self.labs_table, stretch=1)
 
         actions = QHBoxLayout()
@@ -675,6 +687,7 @@ class LabsPage(QWidget):
         self.labs_balance_model = QStandardItemModel()
         self.labs_balance_model.setHorizontalHeaderLabels(["المعمل", "الرصيد"])
         self.labs_balance_table.setModel(self.labs_balance_model)
+        self.labs_balance_table.configure_columns(stretch=0)
         self.labs_balance_table.selectionModel().selectionChanged.connect(
             self._on_lab_selected)
         columns.addWidget(self.labs_balance_table, stretch=2)
@@ -703,6 +716,8 @@ class LabsPage(QWidget):
         self.account_tx_model.setHorizontalHeaderLabels(
             ["التاريخ", "النوع", "المبلغ", "الوصف", "ID"])
         self.account_tx_table.setModel(self.account_tx_model)
+        self.account_tx_table.hide_columns(4)
+        self.account_tx_table.configure_columns(stretch=3, exclude_center=(3,))
         ledger_box.addWidget(self.account_tx_table, stretch=1)
 
         del_payment_btn = SecondaryButton("حذف الدفعة")

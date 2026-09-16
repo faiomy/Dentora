@@ -226,6 +226,7 @@ class AppointmentsPage(QWidget):
         )
         self.table.setModel(self.model)
         self.table.hide_columns(6)
+        self.table.configure_columns(stretch=2, exclude_center=(5,))
         root_layout.addWidget(self.table, stretch=1)
 
         # --- Action buttons ----------------------------------------------

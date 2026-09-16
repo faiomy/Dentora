@@ -22,9 +22,10 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QWidget,
     QButtonGroup,
+    QAbstractItemView,
 )
 from PySide6.QtGui import QFont, QColor
-from PySide6.QtCore import Qt, QTime
+from PySide6.QtCore import Qt, QTime, QModelIndex
 
 from . import design
 
@@ -273,10 +274,23 @@ class StatCard(Card):
 # ---------------------------------------------------------------------------
 
 class DataTable(QTableView):
-    """A ready-to-use table view styled by the global QSS:
-    no internal gridlines, subtle PRIMARY_50 alternating rows, header on
-    BACKGROUND with small TEXT_SECONDARY text, comfortable row height and
-    centered content (Arabic tabular data reads better centered)."""
+    """The global table standard for the whole application.
+
+    Every table derives from this single component so behavior stays
+    consistent everywhere:
+
+    - **Read-only** - cells can never be typed into or double-click-edited;
+      editing happens only through explicit dialogs/actions.
+    - **Never truncates data** - columns resize to fit their full content
+      (``ResizeToContents``) and a horizontal scrollbar appears when the
+      window is genuinely too narrow instead of ellipsizing values.
+    - **Intelligent widths** - ``configure_columns`` lets a table nominate
+      one primary column (usually a name/description) to absorb the leftover
+      space, so short columns never hog the width.
+    - **Centered cells by default** (matches the app's RTL/Arabic visual
+      language), with the option to exclude long-text columns.
+    - Alternate row tinting plus clear divider lines between rows.
+    """
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -286,35 +300,71 @@ class DataTable(QTableView):
         self.setSelectionBehavior(QTableView.SelectRows)
         self.setSelectionMode(QTableView.SingleSelection)
         self.setWordWrap(False)
+        # Read-only everywhere: no in-place editing, ever. Selecting a row is
+        # just a selection; edits go through explicit buttons/dialogs.
+        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.verticalHeader().setVisible(False)
-        self.verticalHeader().setDefaultSectionSize(38)
-        self.horizontalHeader().setStretchLastSection(True)
-        self.horizontalHeader().setSectionsClickable(True)
-        self.horizontalHeader().setDefaultAlignment(Qt.AlignCenter)
-        self.horizontalHeader().setMinimumSectionSize(64)
+        self.verticalHeader().setDefaultSectionSize(40)
+        header = self.horizontalHeader()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(QHeaderView.ResizeToContents)
+        header.setSectionsClickable(True)
+        header.setSortIndicatorShown(False)
+        header.setDefaultAlignment(Qt.AlignCenter)
+        header.setMinimumSectionSize(64)
+        self._exclude_center = set()
+
+    def setModel(self, model):
+        """Hook row inserts so cells are centered by default (unless the
+        column is excluded) - no per-page centering code needed."""
+        if self.model() is not None:
+            try:
+                self.model().rowsInserted.disconnect(self._center_inserted_rows)
+            except (RuntimeError, TypeError):
+                pass
+        super().setModel(model)
+        if model is not None:
+            model.rowsInserted.connect(self._center_inserted_rows)
+
+    def configure_columns(self, stretch=None, exclude_center=()):
+        """Apply the intelligent width/alignment layout for this table.
+
+        - ``stretch``: model column index that absorbs the leftover width
+          (typically the long name/description column).
+        - ``exclude_center``: model columns left with natural (non-centered)
+          alignment - used for genuinely long free-text columns.
+        All other columns fit their content exactly, so no value is ever
+        truncated by an arbitrary width.
+        """
+        self._exclude_center = set(exclude_center)
+        header = self.horizontalHeader()
+        cols = self.model().columnCount() if self.model() is not None else 0
+        if stretch is not None and 0 <= stretch < cols:
+            # Give the stretch column a content-sized base first, then
+            # let it absorb the leftover horizontal space.
+            header.setSectionResizeMode(stretch, QHeaderView.ResizeToContents)
+            header.resizeSection(stretch, header.sectionSize(stretch))
+            header.setSectionResizeMode(stretch, QHeaderView.Stretch)
+        if self.model() is not None and self.model().rowCount() > 0:
+            self._center_inserted_rows(QModelIndex(), 0, self.model().rowCount() - 1)
+
+    def _center_inserted_rows(self, parent, first, last):
+        model = self.model()
+        if model is None:
+            return
+        cols = model.columnCount()
+        for row in range(first, last + 1):
+            for col in range(cols):
+                if col in self._exclude_center:
+                    continue
+                item = model.item(row, col)
+                if item is not None:
+                    item.setTextAlignment(Qt.AlignCenter)
 
     def hide_columns(self, *indices):
         """Hide technical columns (kept in the model only for lookups)."""
         for i in indices:
             self.setColumnHidden(int(i), True)
-
-    def format_column(self, column: int, alignment=None, stretch: bool = False):
-        """Per-column presentation helper (alignment / stretch)."""
-        header = self.horizontalHeader()
-        if alignment is not None:
-            header.setSectionResizeMode(column, QHeaderView.Interactive)
-            for row in range(self.model().rowCount()):
-                item = self.model().item(row, column)
-                if item:
-                    item.setTextAlignment(alignment)
-
-    @staticmethod
-    def center_column(model, column: int):
-        """Center the cells of *column* (header alignment handled globally)."""
-        for row in range(model.rowCount()):
-            item = model.item(row, column)
-            if item:
-                item.setTextAlignment(Qt.AlignCenter)
 
 
 # ---------------------------------------------------------------------------
