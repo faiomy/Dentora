@@ -221,10 +221,25 @@ Body (JSON):
 
 ## 7) اختبارات
 
+من جذر المشروع:
+
 ```
-python -c "import sys; sys.path.insert(0,'.'); import tests.api_tests as t; t.main()"
-python -c "import sys; sys.path.insert(0,'.'); import tests.webhook_tests as t; t.main()"
-python -c "import sys; sys.path.insert(0,'.'); import tests.api_demo as t; t.main()"
+python -m tests.api_tests        # مصادقة/نطاقات/CRUD/أحداث (TestClient)
+python -m tests.webhook_tests    # توقيع HMAC/تسليم/مهلة/إعادة محاولة
+python -m tests.api_demo         # الاتجاهان عبر HTTP حقيقي + webhook
 ```
 
-على Windows/PowerShell شغّل مع `$env:PYTHONIOENCODING='utf-8'` طالما في مخرجات عربية.
+على ويندوز شغّلها مع `PYTHONIOENCODING=utf-8` (أو `$env:PYTHONIOENCODING='utf-8'`
+في PowerShell) لو الطرفية بتطبع cp1252.
+
+## 8) قيود معروفة (v1)
+
+- طابور الأحداث في الذاكرة (thread لكل webhook) — لو البرنامج اتقفل وقت
+  الإرسال، المحاولة بتضيع. تسليم دائم 100% محتاج `webhook_deliveries` +
+  إعادة جدولة عند الإقلاع (تحسين مخطط لـ v2).
+- لا توجد مسارات REST لإدارة المفاتيح أو الـ webhooks — إدارتهم من
+  إعدادات البرنامج فقط (قرار أمني مقصود).
+- نطاق `test.ping` الحدث اليدوي متاح للتحقق السريع من الاتصال.
+- توقيع HMAC مشفر بصيغة `sha256=<hex>` في هيدر `X-Dentora-Signature`،
+  مع `X-Dentora-Event-Id` و `X-Dentora-Timestamp` للتحقق والتكرار.
+- HTTPS غير مُفعّل محليًا — استخدم شبكة موثوقة أو tunnel مشفّر للوصول البعيد.
