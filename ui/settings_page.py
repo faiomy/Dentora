@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
+    QGridLayout,
     QLabel,
     QListWidget,
     QStackedWidget,
@@ -24,9 +25,12 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QColorDialog,
     QApplication,
+    QMessageBox,
 )
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QColor
 from PySide6.QtCore import Qt
+
+import sqlite3
 
 import database as db
 import theme
@@ -171,6 +175,7 @@ class SettingsPage(QWidget):
             self._refresh_schedule()
             self._refresh_users()
             self._refresh_users_table()
+            self._refresh_api()
 
     @property
     def _is_manager(self):
@@ -205,6 +210,7 @@ class SettingsPage(QWidget):
         self.schedule_panel = self._build_schedule_panel()
         self.security_panel = self._build_security_panel()
         self.users_panel = self._build_users_panel()
+        self.api_panel = self._build_api_access_panel()
 
         self._apply_role_layout()
 
@@ -224,7 +230,7 @@ class SettingsPage(QWidget):
 
         categories = ["بيانات العيادة", "المظهر"]
         if is_manager:
-            categories += ["المواعيد والإجازات", "الأمان", "المستخدمون"]
+            categories += ["المواعيد والإجازات", "الأمان", "المستخدمون", "الوصول للـ API"]
         for c in categories:
             self.category_list.addItem(c)
 
@@ -234,6 +240,7 @@ class SettingsPage(QWidget):
             self.stack.addWidget(self.schedule_panel)
             self.stack.addWidget(self.security_panel)
             self.stack.addWidget(self.users_panel)
+            self.stack.addWidget(self.api_panel)
 
         self.category_list.setCurrentRow(0)
 
@@ -671,3 +678,365 @@ class SettingsPage(QWidget):
             self._refresh_schedule()
             self._refresh_users()
             self._refresh_users_table()
+            self._refresh_api()
+
+    # ------------------------------------------------------------------
+    # API Access (لوحة "الوصول للـ API" - للمدير فقط)
+    # ------------------------------------------------------------------
+    def _build_api_access_panel(self):
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setSpacing(design.SPACING * 2)
+
+        # --- خادم الـ API ---
+        layout.addWidget(FieldLabel("خادم الـ API (التكامل)"))
+        self.api_enabled_check = QCheckBox("تشغيل الخادم تلقائيًا عند فتح البرنامج (محلي فقط افتراضيًا)")
+        layout.addWidget(self.api_enabled_check)
+
+        srv_row = QHBoxLayout()
+        srv_row.addWidget(QLabel("عنوان الربط (host):"))
+        self.api_host_edit = TextInput(placeholder="127.0.0.1")
+        self.api_host_edit.setFixedWidth(140)
+        srv_row.addWidget(self.api_host_edit)
+        srv_row.addWidget(QLabel("المنفذ (port):"))
+        self.api_port_edit = TextInput(placeholder="8100")
+        self.api_port_edit.setFixedWidth(80)
+        srv_row.addWidget(self.api_port_edit)
+        srv_row.addStretch()
+        save_srv_btn = PrimaryButton("حفظ إعدادات الخادم")
+        save_srv_btn.clicked.connect(self._save_api_server)
+        srv_row.addWidget(save_srv_btn)
+        layout.addLayout(srv_row)
+
+        self.api_status_label = QLabel()
+        self.api_status_label.setWordWrap(True)
+        layout.addWidget(self.api_status_label)
+
+        # --- مفاتيح الـ API ---
+        layout.addWidget(FieldLabel("مفاتيح الـ API (مولّدة للأنظمة الخارجية)"))
+        self.api_keys_list = QListWidget()
+        self.api_keys_list.setObjectName("SettingsList")
+        layout.addWidget(self.api_keys_list, stretch=3)
+        keys_row = QHBoxLayout()
+        add_key_btn = PrimaryButton("إضافة مفتاح")
+        add_key_btn.clicked.connect(self._add_api_key)
+        toggle_key_btn = SecondaryButton("تفعيل / تعطيل")
+        toggle_key_btn.clicked.connect(self._toggle_api_key)
+        del_key_btn = SecondaryButton("حذف")
+        del_key_btn.clicked.connect(self._delete_api_key)
+        keys_row.addWidget(add_key_btn)
+        keys_row.addWidget(toggle_key_btn)
+        keys_row.addWidget(del_key_btn)
+        keys_row.addStretch()
+        layout.addLayout(keys_row)
+
+        # --- الـ webhooks الصادرة ---
+        layout.addWidget(FieldLabel("الـ Webhooks الصادرة (استقبال الأحداث في نظام خارجي)"))
+        self.webhooks_list = QListWidget()
+        self.webhooks_list.setObjectName("SettingsList")
+        layout.addWidget(self.webhooks_list, stretch=3)
+        wh_row = QHBoxLayout()
+        add_wh_btn = PrimaryButton("إضافة Webhook")
+        add_wh_btn.clicked.connect(self._add_webhook)
+        toggle_wh_btn = SecondaryButton("تفعيل / تعطيل")
+        toggle_wh_btn.clicked.connect(self._toggle_webhook)
+        test_wh_btn = SecondaryButton("إرسال حدث اختبار")
+        test_wh_btn.clicked.connect(self._test_webhook)
+        del_wh_btn = SecondaryButton("حذف")
+        del_wh_btn.clicked.connect(self._delete_webhook)
+        wh_row.addWidget(add_wh_btn)
+        wh_row.addWidget(toggle_wh_btn)
+        wh_row.addWidget(test_wh_btn)
+        wh_row.addWidget(del_wh_btn)
+        wh_row.addStretch()
+        layout.addLayout(wh_row)
+
+        hint = QLabel("مفاتيح API بتدى صلاحيات منفصلة للقراءة/الكتابة/الحذف لكل مورد "
+                      "(الحذف مش متضمن في الكتابة أبدًا). الوثائق الكاملة في "
+                      "API_INTEGRATION.md.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet(f"color: {design.TEXT_MUTED};")
+        layout.addWidget(hint)
+        return panel
+
+    def _selected_api_key(self):
+        item = self.api_keys_list.currentItem()
+        return getattr(item, "key_id", None)
+
+    def _selected_webhook(self):
+        item = self.webhooks_list.currentItem()
+        return getattr(item, "webhook_id", None)
+
+    def _refresh_api(self):
+        self.settings = db.get_settings() or {}
+        self.settings.setdefault("api_host", "127.0.0.1")
+        self.settings.setdefault("api_port", 8100)
+        self.api_enabled_check.setChecked(bool(self.settings.get("api_server_enabled")))
+        self.api_host_edit.setText(str(self.settings.get("api_host")))
+        self.api_port_edit.setText(str(self.settings.get("api_port")))
+
+        from api.server import get_api_server
+        srv = get_api_server()
+        running = srv.is_running
+        state = "يعمل الآن" if running else "متوقف"
+        self.api_status_label.setText(
+            f"حالة الخادم: {state} - عنوانه: {srv.url} "
+            "(افتراضيًا مقيد على هذا الجهاز فقط - الوصول من الشبكة يتطلب تعيين "
+            "host = 0.0.0.0 صراحةً).")
+
+        self.api_keys_list.clear()
+        try:
+            api_keys = db.list_api_keys()
+        except sqlite3.OperationalError:
+            api_keys = []
+        for k in api_keys:
+            scopes = (k.get("scopes") or "").replace(",", "، ")
+            enabled = "مفعّل" if k.get("enabled") else "موقوف"
+            item = QListWidgetItem(
+                f"{k['name']}  |  {k.get('key_preview') or ''}  |  {enabled}  |  "
+                f"الصلاحيات: {scopes}")
+            item.key_id = k["id"]
+            self.api_keys_list.addItem(item)
+
+        self.webhooks_list.clear()
+        try:
+            webhooks = db.list_outbound_webhooks()
+        except sqlite3.OperationalError:
+            webhooks = []
+        for w in webhooks:
+            enabled = "مفعّل" if w.get("enabled") else "موقوف"
+            last = w.get("last_status") or "لم يُرسل بعد"
+            item = QListWidgetItem(
+                f"{w['name']}  |  {w['url']}  |  الأحداث: {w.get('event_types')}  |  "
+                f"{enabled}  |  آخر إرسال: {last}"
+                + (f"  |  {w.get('last_error')}" if w.get("last_error") else ""))
+            item.webhook_id = w["id"]
+            self.webhooks_list.addItem(item)
+
+    def _save_api_server(self):
+        import api.server as srv_mod
+        host = (self.api_host_edit.text() or "127.0.0.1").strip()
+        try:
+            port = int(self.api_port_edit.text() or 8100)
+        except (TypeError, ValueError):
+            show_error(self, "خطأ", "المنفذ يجب أن يكون رقمًا صحيحًا.")
+            return
+        if port < 1 or port > 65535:
+            show_error(self, "خطأ", "المنفذ يجب أن يقع بين 1 و 65535.")
+            return
+        if host not in ("127.0.0.1", "localhost", "0.0.0.0"):
+            # التنبيه: أي عنوان غير محلي ممكن يكون غير مقصود - تحذير مدمج
+            show_info(self, "تنبيه",
+                      f"تم ربط الخادم بالعنوان '{host}' - تأكد إنه عمدي وأن "
+                      "أي جدار حماية/مشاركة تم ضبطها بمعرفتك.")
+        db.set_setting_value("api_host", host)
+        db.set_setting_value("api_port", port)
+        db.set_setting_value("api_server_enabled", 1 if self.api_enabled_check.isChecked() else 0)
+        ok = srv_mod.restart_api_server()
+        self._refresh_api()
+        if self.api_enabled_check.isChecked() and not ok:
+            show_error(self, "خطأ", "تعذر تشغيل الخادم - تحقق من المنفذ.")
+        else:
+            show_info(self, "تم", "تم حفظ إعدادات خادم الـ API.")
+
+    def _add_api_key(self):
+        from dentora_events import SCOPES
+        dlg = QDialog(self)
+        dlg.setWindowTitle("إضافة مفتاح API")
+        lay = QVBoxLayout(dlg)
+        name_edit = TextInput(placeholder="اسم المفتاح (مثال: مزامنة n8n)")
+        lay.addWidget(name_edit)
+        scopes_layout = QGridLayout()
+        checks = {}
+        grid_index = 0
+        for scope in sorted(SCOPES):
+            cb = QCheckBox(f"{scope} — {SCOPES[scope]}")
+            checks[scope] = cb
+            scopes_layout.addWidget(cb, grid_index // 2, grid_index % 2)
+            grid_index += 1
+        lay.addLayout(scopes_layout)
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Ok).setText("إنشاء")
+        buttons.button(QDialogButtonBox.Cancel).setText("إلغاء")
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        lay.addWidget(buttons)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        name = name_edit.text().strip()
+        if not name:
+            show_error(self, "خطأ", "اسم المفتاح مطلوب.")
+            return
+        scopes = [s for s, cb in checks.items() if cb.isChecked()]
+        if not scopes:
+            show_error(self, "خطأ", "حدد صلاحية واحدة على الأقل.")
+            return
+        result = db.generate_api_key(name, scopes)
+        self._show_api_key_once(result)
+        self._refresh_api()
+
+    def _show_api_key_once(self, result):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("مفتاح API جديد")
+        lay = QVBoxLayout(dlg)
+        lay.addWidget(FieldLabel("المفتاح - انسخه الآن، لن يظهر مرة أخرى"))
+        key_edit = QLineEdit(result["raw_key"])
+        key_edit.setReadOnly(True)
+        lay.addWidget(key_edit)
+        btns = QHBoxLayout()
+        copy_btn = PrimaryButton("نسخ إلى الحافظة")
+        copy_btn.clicked.connect(lambda: (QApplication.clipboard().setText(
+            result["raw_key"]), show_info(dlg, "تم", "تم النسخ.")))
+        ok_btn = SecondaryButton("تم")
+        ok_btn.clicked.connect(dlg.accept)
+        btns.addWidget(copy_btn)
+        btns.addWidget(ok_btn)
+        lay.addLayout(btns)
+        dlg.exec()
+
+    def _toggle_api_key(self):
+        key_id = self._selected_api_key()
+        if not key_id:
+            return
+        keys = {k["id"]: k for k in db.list_api_keys()}
+        key = keys.get(key_id)
+        if not key:
+            return
+        db.update_api_key_fields(key_id, enabled=not bool(key.get("enabled")))
+        self._refresh_api()
+
+    def _delete_api_key(self):
+        key_id = self._selected_api_key()
+        if not key_id:
+            return
+        key = next((k for k in db.list_api_keys() if k["id"] == key_id), None)
+        if not key:
+            return
+        ok = QMessageBox.question(
+            self, "تأكيد", f"حذف مفتاح '{key['name']}' نهائيًا؟",
+            QMessageBox.Yes | QMessageBox.No)
+        if ok == QMessageBox.Yes:
+            db.delete_api_key(key_id)
+            self._refresh_api()
+
+    def _add_webhook(self):
+        from dentora_events import EVENT_TYPES
+        import secrets as _secrets
+        dlg = QDialog(self)
+        dlg.setWindowTitle("إضافة Webhook صادر")
+        form = QFormLayout(dlg)
+        name_edit = TextInput(placeholder="اسم الواجهة (مثال: n8n-master)")
+        url_edit = TextInput(placeholder="https://host/webhook/...")
+        secret_edit = TextInput(placeholder="سر التوقيع HMAC (اتركه فارغًا للتوليد)")
+        timeout_edit = QSpinBox(); timeout_edit.setRange(1, 60); timeout_edit.setValue(10)
+        attempts_edit = QSpinBox(); attempts_edit.setRange(1, 10); attempts_edit.setValue(3)
+        form.addRow("الاسم", name_edit)
+        form.addRow("URL", url_edit)
+        secret_row = QHBoxLayout()
+        secret_row.addWidget(secret_edit)
+        gen_btn = SecondaryButton("توليد")
+        gen_btn.clicked.connect(lambda: secret_edit.setText(_secrets.token_hex(32)))
+        secret_row.addWidget(gen_btn)
+        form.addRow("السر", secret_row)
+        form.addRow("المهلة (ثواني)", timeout_edit)
+        form.addRow("أقصى محاولات", attempts_edit)
+
+        events_box = QVBoxLayout()
+        all_cb = QCheckBox("كل الأحداث (*)") ; all_cb.setChecked(True)
+        events_box.addWidget(all_cb)
+        event_checks = {}
+        for et in EVENT_TYPES:
+            cb = QCheckBox(et)
+            event_checks[et] = cb
+            events_box.addWidget(cb)
+
+        def _sync():
+            any_checked = any(c.isChecked() for c in event_checks.values())
+            all_cb.setChecked(not any_checked)
+        for cb in event_checks.values():
+            cb.toggled.connect(_sync)
+        all_cb.toggled.connect(
+            lambda checked: checked and [c.setChecked(False) for c in event_checks.values()])
+        form.addRow("الأحداث", events_box)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Ok).setText("إضافة")
+        buttons.button(QDialogButtonBox.Cancel).setText("إلغاء")
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        form.addRow(buttons)
+
+        if dlg.exec() != QDialog.Accepted:
+            return
+        name = name_edit.text().strip()
+        url = url_edit.text().strip()
+        if not url or not url.startswith(("http://", "https://")):
+            show_error(self, "خطأ", "أدخل URL صالح يبدأ بـ http:// أو https://")
+            return
+        secret = secret_edit.text().strip() or _secrets.token_hex(32)
+        if all_cb.isChecked():
+            event_types = "*"
+        else:
+            event_types = [et for et, cb in event_checks.items() if cb.isChecked()]
+            if not event_types:
+                show_error(self, "خطأ", "حدد الأحداث أو اختر 'كل الأحداث'.")
+                return
+        db.add_outbound_webhook(name or url, url, secret=secret,
+                                event_types=event_types,
+                                timeout_seconds=timeout_edit.value(),
+                                max_attempts=attempts_edit.value())
+        self._refresh_api()
+
+    def _toggle_webhook(self):
+        webhook_id = self._selected_webhook()
+        if not webhook_id:
+            return
+        webhooks = {w["id"]: w for w in db.list_outbound_webhooks()}
+        wh = webhooks.get(webhook_id)
+        if not wh:
+            return
+        db.update_outbound_webhook(webhook_id, enabled=not bool(wh.get("enabled")))
+        self._refresh_api()
+
+    def _test_webhook(self):
+        import uuid
+        from datetime import datetime
+        webhook_id = self._selected_webhook()
+        if not webhook_id:
+            return
+        from dentora_events import dispatch_webhook
+        wh = db.get_outbound_webhook(webhook_id)
+        if not wh:
+            return
+        if not wh.get("enabled"):
+            show_error(self, "خطأ", "فعّل الـ Webhook أولًا قبل اختباره.")
+            return
+        show_info(self, "جارٍ الإرسال", "بيتم إرسال حدث test.ping الآن...")
+        event = {
+            "event_id": uuid.uuid4().hex,
+            "event_type": "test.ping",
+            "resource": "system",
+            "data": {"source": "settings panel"},
+            "timestamp": datetime.now().astimezone().isoformat(),
+        }
+        ok = dispatch_webhook(wh, event)
+        self._refresh_api()
+        if ok:
+            show_info(self, "تم", "وصل الـ Webhook واستجاب بنجاح.")
+        else:
+            show_error(self, "فشل",
+                       "لم يصل الـ Webhook - راجع الحالة و آخر خطأ في القائمة.")
+
+    def _delete_webhook(self):
+        webhook_id = self._selected_webhook()
+        if not webhook_id:
+            return
+        webhook = db.get_outbound_webhook(webhook_id)
+        if not webhook:
+            return
+        ok = QMessageBox.question(
+            self, "تأكيد", f"حذف '{webhook['name']}' نهائيًا؟",
+            QMessageBox.Yes | QMessageBox.No)
+        if ok == QMessageBox.Yes:
+            db.delete_outbound_webhook(webhook_id)
+            self._refresh_api()

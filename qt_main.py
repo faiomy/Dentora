@@ -20,12 +20,35 @@ PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+import atexit
+
 from ui import design
 from ui.stylesheet import apply_ui_theme
 from ui.login_dialog import LoginDialog
 from ui.main_window import MainWindow
 
 import database as db
+
+
+def _stop_api_server_at_exit():
+    try:
+        from api.server import stop_api_server
+        stop_api_server()
+    except Exception:
+        pass
+
+
+def start_api_server_if_enabled():
+    """تشغيل خادم الـ API في الخلفية لو مفعّل من إعدادات العيادة (محلي فقط
+    افتراضيًا على 127.0.0.1) - من غير ما يوقف أو يجمّد حلقات الـ UI."""
+    try:
+        from api.server import start_api_server_if_enabled as _start
+        started = _start()
+        if started:
+            from api.server import get_api_server
+            print(f"[API] خادم التكامل يعمل على {get_api_server().url}")
+    except Exception:
+        pass
 
 
 def load_fonts():
@@ -66,6 +89,10 @@ def main():
 
     # Ensure the database schema exists (idempotent).
     db.init_db()
+
+    # تشغيل خادم الـ API في الخلفية (لو مفعّل) + إيقافه عند الخروج
+    atexit.register(_stop_api_server_at_exit)
+    start_api_server_if_enabled()
 
     # ONE global stylesheet at the application level, themed from the
     # clinic-wide settings so the login screen already matches the brand.

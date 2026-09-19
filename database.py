@@ -57,7 +57,8 @@ def verify_password(password: str, stored_hash: str) -> bool:
 
 # مسار قاعدة البيانات - ممكن تتغير لمسار على الشبكة (مجلد مشترك) بدل المسار المحلي
 # مثال لو هتحط الملف على مجلد مشترك: r"\\SERVER-PC\ClinicShare\clinic_data.db"
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "clinic_data.db")
+DB_PATH = (os.environ.get("DENTORA_DB_PATH")
+           or os.path.join(os.path.dirname(os.path.abspath(__file__)), "clinic_data.db"))
 
 # قائمة الأعمدة المسموح استخدامها في update_patient - لمنع SQL injection
 PATIENT_UPDATABLE_FIELDS = {
@@ -166,6 +167,14 @@ def init_db():
         # من init_db). تبقى الأعمدة محفوظة للتوافق مع قواعد بيانات قديمة ----
         "financial_reset_v2_done": "INTEGER NOT NULL DEFAULT 0",
         "expenses_reset_v1_done": "INTEGER NOT NULL DEFAULT 0",
+        # ---- خادم الـ API (واجهة التكامل - تقرأها api/server.py) ----
+        # api_server_enabled: تشغيل الخادم تلقائيًا مع فتح البرنامج.
+        # api_host: مكان الربط - 127.0.0.1 (افتراضي، محلي فقط) أو 0.0.0.0
+        #            لو المستخدم يريد الوصول من الشبكة المحلية صراحةً.
+        # api_port: منفذ الاستماع.
+        "api_server_enabled": "INTEGER NOT NULL DEFAULT 0",
+        "api_host": "TEXT NOT NULL DEFAULT '127.0.0.1'",
+        "api_port": "INTEGER NOT NULL DEFAULT 8100",
     }
     cur.execute("PRAGMA table_info(clinic_settings)")
     existing_cols2 = {row[1] for row in cur.fetchall()}
@@ -895,6 +904,81 @@ def init_db():
         )
     """)
 
+    # ---------------- طبقة التكامل: مفاتيح الـ API ----------------
+    # كل مفتاح بيخزن كـ SHA-256 hash بس (النص الأصلي بيظهر مرة واحدة
+    # وقت الإنشاء ثم يتلاشى نهائيًا). scopes = ارقام صلاحيات مفصولة بفواصل
+    # (مثل "patients.read,financials.write").
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS api_keys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            key_hash TEXT NOT NULL UNIQUE,
+            key_preview TEXT NOT NULL DEFAULT '',
+            scopes TEXT NOT NULL DEFAULT '',
+            enabled INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+            last_used_at TEXT
+        )
+    """)
+    # ترقية تطهيرية: لو جدول api_keys اتّعمل في نسخة قبل إضافة key_preview
+    cur.execute("PRAGMA table_info(api_keys)")
+    api_key_cols = {row[1] for row in cur.fetchall()}
+    if api_key_cols and "key_preview" not in api_key_cols:
+        cur.execute("ALTER TABLE api_keys ADD COLUMN key_preview TEXT NOT NULL DEFAULT ''")
+
+    # ---------------- طبقة التكامل: ويب هوك صادر ----------------
+    # كل سطر = endpoint خارجي بيستقبل أحداث العيادة (payload JSON موقّع
+    # بتوقيع HMAC). event_types: '*' يعني كل الأحداث، أو قائمة مفصولة بفواصل.
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS outbound_webhooks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            url TEXT NOT NULL,
+            secret TEXT NOT NULL DEFAULT '',
+            event_types TEXT NOT NULL DEFAULT '*',
+            enabled INTEGER NOT NULL DEFAULT 1,
+            timeout_seconds INTEGER NOT NULL DEFAULT 10,
+            max_attempts INTEGER NOT NULL DEFAULT 3,
+            created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+            last_status TEXT,
+            last_error TEXT,
+            last_delivered_at TEXT
+        )
+    """)
+
+    # ---------------- طبقة التكامل: محاولات تسليم الـ webhooks ----------------
+    # سجل كل محاولة إرسال (نجاح/فشل + كود الرد + الخطأ) لكل (webhook + event).
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS webhook_deliveries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            webhook_id INTEGER NOT NULL,
+            event_type TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending', 'delivered', 'failed')),
+            attempt INTEGER NOT NULL DEFAULT 0,
+            http_status INTEGER,
+            error TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+            delivered_at TEXT
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook_event "
+                "ON webhook_deliveries(webhook_id)")
+
+    # ---------------- طبقة التكامل: سجل الأحداث ----------------
+    # كل حدث بيتم تسجيله هنا (حتى لو مكانش فيه webhooks مفعّلة) - مفيد
+    # للتصحيح ولقراءة الأحداث اللاحقة عبر الـ API.
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS event_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_event_log_type_created "
+                "ON event_log(event_type, created_at)")
+
     conn.commit()
     conn.close()
 
@@ -1000,6 +1084,7 @@ def set_setting_value(column_name, value):
         "remembered_password", "show_ribbon_labels",
         "theme_id", "nav_button_style", "icon_pattern", "dark_mode",
         "financial_reset_v2_done", "expenses_reset_v1_done",
+        "api_server_enabled", "api_host", "api_port",
     }
     if column_name not in _KNOWN_SETTINGS_COLUMNS:
         raise ValueError(f"set_setting_value: غير مسموح بتعديل العمود '{column_name}'")
@@ -1186,6 +1271,20 @@ def add_patient(full_name, phone="", birth_date="", gender="", address="", medic
     conn.commit()
     conn.close()
 
+    _emit_event("patient.created", "patient", {
+        "id": patient_id,
+        "full_name": full_name,
+        "phone": phone,
+        "birth_date": birth_date,
+        "gender": gender,
+        "address": address,
+        "medical_notes": medical_notes,
+        "allergies": allergies,
+        "occupation": occupation,
+        "family_id": family_id,
+        "nationality": nationality,
+    })
+
     # أول ما يتعمل ملف مريض جديد وعنده تاريخ ميلاد، بنولّد له تلقائيًا
     # خريطة أسنان مبدئية تتناسب مع عمره بناءً على الجدول الزمني العالمي
     # للتسنين (أي سن دائم لسه معاهوش بيبان "لبني موجود" أو "لم يبزغ بعد"
@@ -1208,6 +1307,8 @@ def update_patient(patient_id, **fields):
     conn.execute(f"UPDATE patients SET {columns} WHERE id = ?", values)
     conn.commit()
     conn.close()
+
+    _emit_event("patient.updated", "patient", {"id": patient_id, **fields})
 
     # لو اتضاف/اتصحح تاريخ الميلاد بعد إنشاء الملف ولسه مفيش خريطة أسنان
     # اتولدت خالص للمريض ده (يعني ملفه اتعمل من غير تاريخ ميلاد وقتها)،
@@ -1543,6 +1644,17 @@ def add_appointment(patient_id, appt_date, appt_time, doctor_name="", status="co
     appt_id = cur.lastrowid
     conn.commit()
     conn.close()
+
+    _emit_event("appointment.created", "appointment", {
+        "id": appt_id,
+        "patient_id": patient_id,
+        "appt_date": appt_date,
+        "appt_time": appt_time,
+        "doctor_name": doctor_name,
+        "status": status,
+        "notes": notes,
+        "duration_minutes": duration_minutes,
+    })
     return appt_id
 
 
@@ -1551,6 +1663,10 @@ def update_appointment_status(appt_id, status):
     conn.execute("UPDATE appointments SET status = ? WHERE id = ?", (status, appt_id))
     conn.commit()
     conn.close()
+    if status == "cancelled":
+        _emit_event("appointment.cancelled", "appointment", {"id": appt_id, "status": status})
+    else:
+        _emit_event("appointment.updated", "appointment", {"id": appt_id, "status": status})
 
 
 def update_appointment_color(appt_id, color):
@@ -1582,6 +1698,14 @@ def update_appointment(appt_id, appt_date=None, appt_time=None, duration_minutes
     ))
     conn.commit()
     conn.close()
+    _emit_event("appointment.updated", "appointment", {
+        "id": appt_id,
+        "appt_date": appt_date if appt_date is not None else current["appt_date"],
+        "appt_time": appt_time if appt_time is not None else current["appt_time"],
+        "duration_minutes": duration_minutes if duration_minutes is not None else current["duration_minutes"],
+        "doctor_name": doctor_name if doctor_name is not None else current["doctor_name"],
+        "notes": notes if notes is not None else current["notes"],
+    })
 
 
 def update_appointment_details(appt_id, appt_date, appt_time, duration_minutes,
@@ -1597,6 +1721,7 @@ def delete_appointment(appt_id):
     conn.execute("DELETE FROM appointments WHERE id = ?", (appt_id,))
     conn.commit()
     conn.close()
+    _emit_event("appointment.cancelled", "appointment", {"id": appt_id})
 
 
 def get_appointments(date_filter=None):
@@ -1616,6 +1741,18 @@ def get_appointments(date_filter=None):
         """).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def get_appointment(appt_id):
+    """موعد واحد (بنفس شكل get_appointments مع بيانات المريض)"""
+    conn = get_connection()
+    row = conn.execute("""
+        SELECT appointments.*, patients.full_name, patients.phone
+        FROM appointments JOIN patients ON appointments.patient_id = patients.id
+        WHERE appointments.id = ?
+    """, (appt_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 
 # ---------------- قوائم الأسعار ----------------
@@ -2282,6 +2419,15 @@ def add_transaction(patient_id, tx_type, amount, description="", tx_date=None,
     tx_id = cur.lastrowid
     conn.commit()
     conn.close()
+    if tx_type == "payment":
+        _emit_event("payment.created", "payment", {
+            "id": tx_id,
+            "patient_id": patient_id,
+            "amount": amount,
+            "tx_type": tx_type,
+            "description": description,
+            "tx_date": tx_date or datetime.now().strftime("%Y-%m-%d"),
+        })
     return tx_id
 
 
@@ -2313,6 +2459,13 @@ def get_transactions(patient_id):
         (patient_id,)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def get_transaction(tx_id):
+    conn = get_connection()
+    row = conn.execute("SELECT * FROM transactions WHERE id = ?", (tx_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 
 def get_patient_balance(patient_id):
@@ -2402,6 +2555,13 @@ def add_visit(patient_id, notes, visit_date=None, doctor_name=None):
     visit_id = cur.lastrowid
     conn.commit()
     conn.close()
+    _emit_event("visit.created", "visit", {
+        "id": visit_id,
+        "patient_id": patient_id,
+        "visit_date": visit_date or datetime.now().strftime("%Y-%m-%d"),
+        "notes": notes,
+        "doctor_name": doctor_name,
+    })
     return visit_id
 
 
@@ -2427,6 +2587,15 @@ def update_visit(visit_id, notes, doctor_name=None):
                  (notes, doctor_name, visit_id))
     conn.commit()
     conn.close()
+    _emit_event("visit.updated", "visit", {"id": visit_id, "notes": notes,
+                                           "doctor_name": doctor_name})
+
+
+def get_visit(visit_id):
+    conn = get_connection()
+    row = conn.execute("SELECT * FROM visits WHERE id = ?", (visit_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 
 def update_visit_fields(visit_id, **fields):
@@ -2446,6 +2615,7 @@ def update_visit_fields(visit_id, **fields):
                  (*fields.values(), visit_id))
     conn.commit()
     conn.close()
+    _emit_event("visit.updated", "visit", {"id": visit_id, **fields})
 
 
 def get_treatment_records_range(patient_id, start_date, end_date):
@@ -3290,3 +3460,297 @@ def get_n8n_pending_count():
         "SELECT COUNT(*) FROM n8n_message_log WHERE status = 'pending'").fetchone()
     conn.close()
     return row[0] if row else 0
+
+
+# ============================================================
+# طبقة التكامل: الأحداث + مفاتيح الـ API + الـ webhooks الصادرة
+# ============================================================
+#
+# أهداف التصميم:
+#   * كل تعديل/إضافة بيعمل write على قاعدة البيانات بيبعت event بعد نجاح
+#     الـ commit بس (معاملة واحدة). الإرسال بيتم عبر `_emit_event` اللي
+#     بيروح لـ dentora_events.py (موجود برة api/ عشان database.py يفضل
+#     مش معتمد على FastAPI إطلاقًا).
+#   * مفاتيح الـ API بتنحفظ مشفرة (SHA-256) - النص الأصلي بيظهر مرة واحدة
+#     وقت الإنشاء.
+#   * الأحداث بتتسجل في جدول event_log دايمًا، والـ webhooks الصادرة
+#     بتاخد نسخة من الحدث وتوصّله بـ HMAC + إعادة محاولة محدودة.
+
+
+def _emit_event(event_type, resource, data):
+    """نقطة الإصدار الوحيدة للأحداث من طبقة قاعدة البيانات.
+
+    بتتندى بعد نجاح الـ commit في كل دالة write مهمة. الـ import بيتعمل
+    جوه الدالة عشان نتجنب أي استيراد دائري (database -> dentora_events ->
+    database). أي فشل هنا بيتم تجاهله بصمت عشان الأحداث عمرها ما تبوّظ
+    العملية الأصلية بتاعة المستخدم."""
+    try:
+        from dentora_events import emit
+        emit(event_type, resource, data)
+    except Exception:
+        pass
+
+
+# ---------------- مفاتيح الـ API ----------------
+
+def _hash_api_key(raw_key):
+    """SHA-256 hash لمفتاح API (نص المفتاح عمره ما بيتخزن)"""
+    return "sha256$" + hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
+
+
+def generate_api_key(name, scopes):
+    """بيوّلد مفتاح API جديد وبيخزن الـ hash بس.
+
+    Returns:
+        dict: {"id", "name", "raw_key", "key_preview", "scopes"}
+        raw_key هو النص الوحيد اللي هيتشاف ده (مش بيتخزن تاني).
+    """
+    if isinstance(scopes, str):
+        scopes = [s.strip() for s in scopes.split(",") if s.strip()]
+    scopes = list(dict.fromkeys(scopes))
+    raw_key = "dentora_" + secrets.token_urlsafe(42)
+    key_hash = _hash_api_key(raw_key)
+    key_preview = raw_key[:12] + "..." + raw_key[-4:]
+    conn = get_connection()
+    cur = conn.execute(
+        "INSERT INTO api_keys (name, key_hash, key_preview, scopes) VALUES (?, ?, ?, ?)",
+        (name, key_hash, key_preview, ",".join(scopes)))
+    key_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return {
+        "id": key_id,
+        "name": name,
+        "raw_key": raw_key,
+        "key_preview": key_preview,
+        "scopes": scopes,
+    }
+
+
+def get_api_key_by_hash(key_hash):
+    """بيدوّر على مفتاح بالـ hash بتاعه (معمول بـ _hash_api_key)"""
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT * FROM api_keys WHERE key_hash = ?", (key_hash,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def list_api_keys():
+    conn = get_connection()
+    rows = conn.execute(
+        """SELECT id, name, key_preview, scopes, enabled, created_at, last_used_at
+           FROM api_keys ORDER BY id""").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def update_api_key_fields(key_id, name=None, scopes=None, enabled=None):
+    if name is None and scopes is None and enabled is None:
+        return
+    if isinstance(scopes, str):
+        scopes = [s.strip() for s in scopes.split(",") if s.strip()]
+    sets = []
+    values = []
+    if name is not None:
+        sets.append("name = ?")
+        values.append(name)
+    if scopes is not None:
+        sets.append("scopes = ?")
+        values.append(",".join(dict.fromkeys(scopes)))
+    if enabled is not None:
+        sets.append("enabled = ?")
+        values.append(1 if enabled else 0)
+    values.append(key_id)
+    conn = get_connection()
+    conn.execute(f"UPDATE api_keys SET {', '.join(sets)} WHERE id = ?", values)
+    conn.commit()
+    conn.close()
+
+
+def delete_api_key(key_id):
+    conn = get_connection()
+    conn.execute("DELETE FROM api_keys WHERE id = ?", (key_id,))
+    conn.commit()
+    conn.close()
+
+
+def record_api_key_usage(key_id):
+    conn = get_connection()
+    conn.execute(
+        "UPDATE api_keys SET last_used_at = ? WHERE id = ?",
+        (datetime.now().strftime("%Y-%m-%d %H:%M"), key_id))
+    conn.commit()
+    conn.close()
+
+
+# ---------------- الـ webhooks الصادرة ----------------
+
+def add_outbound_webhook(name, url, secret="", event_types="*",
+                         timeout_seconds=10, max_attempts=3):
+    if isinstance(event_types, (list, tuple, set)):
+        event_types = ",".join(event_types)
+    conn = get_connection()
+    cur = conn.execute("""
+        INSERT INTO outbound_webhooks
+            (name, url, secret, event_types, timeout_seconds, max_attempts)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (name, url, secret or "", event_types or "*",
+          int(timeout_seconds), int(max_attempts)))
+    webhook_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return webhook_id
+
+
+def list_outbound_webhooks():
+    conn = get_connection()
+    rows = conn.execute("SELECT * FROM outbound_webhooks ORDER BY id").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_outbound_webhook(webhook_id):
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT * FROM outbound_webhooks WHERE id = ?", (webhook_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_outbound_webhook(webhook_id, name=None, url=None, secret=None,
+                            event_types=None, timeout_seconds=None,
+                            max_attempts=None, enabled=None):
+    sets = []
+    values = []
+    if name is not None:
+        sets.append("name = ?"); values.append(name)
+    if url is not None:
+        sets.append("url = ?"); values.append(url)
+    if secret is not None:
+        sets.append("secret = ?"); values.append(secret)
+    if event_types is not None:
+        if isinstance(event_types, (list, tuple, set)):
+            event_types = ",".join(event_types)
+        sets.append("event_types = ?"); values.append(event_types or "*")
+    if timeout_seconds is not None:
+        sets.append("timeout_seconds = ?"); values.append(int(timeout_seconds))
+    if max_attempts is not None:
+        sets.append("max_attempts = ?"); values.append(int(max_attempts))
+    if enabled is not None:
+        sets.append("enabled = ?"); values.append(1 if enabled else 0)
+    if not sets:
+        return
+    values.append(webhook_id)
+    conn = get_connection()
+    conn.execute(f"UPDATE outbound_webhooks SET {', '.join(sets)} WHERE id = ?", values)
+    conn.commit()
+    conn.close()
+
+
+def delete_outbound_webhook(webhook_id):
+    conn = get_connection()
+    conn.execute("DELETE FROM outbound_webhooks WHERE id = ?", (webhook_id,))
+    conn.execute("DELETE FROM webhook_deliveries WHERE webhook_id = ?", (webhook_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_outbound_webhooks_for_event(event_type):
+    """الـ webhooks المفعّلة اللي مستنية الحدث ده"""
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT * FROM outbound_webhooks WHERE enabled = 1").fetchall()
+    conn.close()
+    result = []
+    for r in rows:
+        types = [t.strip() for t in (r["event_types"] or "").split(",") if t.strip()]
+        if "*" in types or event_type in types:
+            result.append(dict(r))
+    return result
+
+
+def update_webhook_last_status(webhook_id, status, error=None):
+    conn = get_connection()
+    conn.execute("""
+        UPDATE outbound_webhooks
+        SET last_status = ?, last_error = ?,
+            last_delivered_at = CASE WHEN ? = 'delivered'
+                                     THEN datetime('now', 'localtime')
+                                     ELSE last_delivered_at END
+        WHERE id = ?
+    """, (status, error, status, webhook_id))
+    conn.commit()
+    conn.close()
+
+
+# ---------------- سجل محاولات تسليم الـ webhooks ----------------
+
+def add_webhook_delivery(webhook_id, event_type):
+    conn = get_connection()
+    cur = conn.execute(
+        "INSERT INTO webhook_deliveries (webhook_id, event_type) VALUES (?, ?)",
+        (webhook_id, event_type))
+    delivery_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return delivery_id
+
+
+def update_webhook_delivery(delivery_id, attempt, status,
+                            http_status=None, error=None):
+    conn = get_connection()
+    if status == "delivered":
+        conn.execute("""
+            UPDATE webhook_deliveries
+            SET attempt = ?, status = ?, http_status = ?, error = ?,
+                delivered_at = datetime('now', 'localtime')
+            WHERE id = ?
+        """, (attempt, status, http_status, error, delivery_id))
+    else:
+        conn.execute("""
+            UPDATE webhook_deliveries
+            SET attempt = ?, status = ?, http_status = ?, error = ?
+            WHERE id = ?
+        """, (attempt, status, http_status, error, delivery_id))
+    conn.commit()
+    conn.close()
+
+
+def get_webhook_deliveries(webhook_id=None, limit=50):
+    conn = get_connection()
+    if webhook_id:
+        rows = conn.execute("""
+            SELECT * FROM webhook_deliveries WHERE webhook_id = ?
+            ORDER BY id DESC LIMIT ?""", (webhook_id, limit)).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM webhook_deliveries ORDER BY id DESC LIMIT ?",
+            (limit,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ---------------- سجل الأحداث ----------------
+
+def log_event_entry(event_type, payload):
+    """بيتسجل في جدول event_log (نسخة JSON كاملة من الحدث)"""
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO event_log (event_type, payload) VALUES (?, ?)",
+        (event_type, payload))
+    conn.commit()
+    conn.close()
+
+
+def get_event_log(event_type=None, limit=100):
+    conn = get_connection()
+    if event_type:
+        rows = conn.execute("""
+            SELECT * FROM event_log WHERE event_type = ?
+            ORDER BY id DESC LIMIT ?""", (event_type, limit)).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM event_log ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
