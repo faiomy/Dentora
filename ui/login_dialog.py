@@ -117,6 +117,10 @@ class LoginDialog(QDialog):
         self.remember_cb.setChecked(bool(settings.get("remember_login", 0)))
         layout.addWidget(self.remember_cb)
 
+        # Press Enter in password field to login
+        if self.password_edit:
+            self.password_edit.returnPressed.connect(self._attempt_login)
+
         # Login button
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
